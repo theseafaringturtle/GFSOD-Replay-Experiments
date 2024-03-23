@@ -22,7 +22,7 @@ def load_filtered_voc_instances(
     is_shots = "shot" in name
     if is_shots:
         fileids = {}
-        split_dir = os.path.join(DATASET_BASE_DIR, "vocsplit")
+        split_dir = os.path.join(DATASET_BASE_DIR, "vocsplit_tfa")
         shot = name.split("_")[-2].split("shot")[0]
         seed = int(name.split("_seed")[-1])
         split_dir = os.path.join(split_dir, "seed{}".format(seed))

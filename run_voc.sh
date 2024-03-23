@@ -5,6 +5,8 @@ source ./deployment_cfg.sh
 EXP_NAME=$1
 SPLIT_ID=$2
 
+echo "Saving results to "$VOC_BASE_SAVE_DIR
+
 SAVE_DIR=$VOC_BASE_SAVE_DIR/${EXP_NAME}
 
 # ------------------------------- Base Pre-train ---------------------------------- #

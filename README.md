@@ -62,10 +62,10 @@ This repo contains the official PyTorch implementation of our ICCV paper
       ...
       datasets
         | -- coco (trainval2014/*.jpg, val2014/*.jpg, annotations/*.json)
-        | -- cocosplit
+        | -- cocosplit_tfa
         | -- VOC2007
         | -- VOC2012
-        | -- vocsplit
+        | -- vocsplit_tfa
       defrcn
       tools
       ...

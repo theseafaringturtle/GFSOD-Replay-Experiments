@@ -9,11 +9,11 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 def register_all_coco(root="datasets"):
 
     METASPLITS = [
-        ("coco14_trainval_all", "coco/trainval2014", "cocosplit/datasplit/trainvalno5k.json"),
-        ("coco14_trainval_base", "coco/trainval2014", "cocosplit/datasplit/trainvalno5k.json"),
-        ("coco14_test_all", "coco/val2014", "cocosplit/datasplit/5k.json"),
-        ("coco14_test_base", "coco/val2014", "cocosplit/datasplit/5k.json"),
-        ("coco14_test_novel", "coco/val2014", "cocosplit/datasplit/5k.json"),
+        ("coco14_trainval_all", "coco/trainval2014", "cocosplit_tfa/datasplit/trainvalno5k.json"),
+        ("coco14_trainval_base", "coco/trainval2014", "cocosplit_tfa/datasplit/trainvalno5k.json"),
+        ("coco14_test_all", "coco/val2014", "cocosplit_tfa/datasplit/5k.json"),
+        ("coco14_test_base", "coco/val2014", "cocosplit_tfa/datasplit/5k.json"),
+        ("coco14_test_novel", "coco/val2014", "cocosplit_tfa/datasplit/5k.json"),
     ]
     for prefix in ["all", "novel"]:
         for shot in [1, 2, 3, 5, 10, 30]:

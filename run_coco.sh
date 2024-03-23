@@ -4,7 +4,9 @@ source ./deployment_cfg.sh
 
 EXPNAME=$1
 
-SAVEDIR=$COCO_SAVE_BASE_DIR/${EXPNAME}
+echo "Saving results to "$COCO_BASE_SAVE_DIR
+
+SAVEDIR=$COCO_BASE_SAVE_DIR/${EXPNAME}
 
 # ------------------------------- Base Pre-train ---------------------------------- #
 python3 main.py --num-gpus $NUM_GPUS --config-file configs/coco/defrcn_det_r101_base.yaml     \
