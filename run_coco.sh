@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
+source ./deployment_cfg.sh
+
 EXPNAME=$1
-SAVEDIR=checkpoints/coco/${EXPNAME}
-IMAGENET_PRETRAIN=/data/.pretrain_weights/ImageNetPretrained/MSRA/R-101.pkl                            # <-- change it to you path
-IMAGENET_PRETRAIN_TORCH=/data/.pretrain_weights/ImageNetPretrained/torchvision/resnet101-5d3b4d8f.pth  # <-- change it to you path
-NUM_GPUS=1
+
+SAVEDIR=$COCO_SAVE_BASE_DIR/${EXPNAME}
 
 # ------------------------------- Base Pre-train ---------------------------------- #
 python3 main.py --num-gpus $NUM_GPUS --config-file configs/coco/defrcn_det_r101_base.yaml     \

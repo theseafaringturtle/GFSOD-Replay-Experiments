@@ -8,6 +8,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 
 __all__ = ["register_meta_voc"]
 
+DATASET_BASE_DIR = os.environ.get('DATASET_BASE_DIR', 'datasets')
 
 def load_filtered_voc_instances(
     name: str, dirname: str, split: str, classnames: str
@@ -21,7 +22,7 @@ def load_filtered_voc_instances(
     is_shots = "shot" in name
     if is_shots:
         fileids = {}
-        split_dir = os.path.join("datasets", "vocsplit")
+        split_dir = os.path.join(DATASET_BASE_DIR, "vocsplit")
         shot = name.split("_")[-2].split("shot")[0]
         seed = int(name.split("_seed")[-1])
         split_dir = os.path.join(split_dir, "seed{}".format(seed))

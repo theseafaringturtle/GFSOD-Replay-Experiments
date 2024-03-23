@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
+source ./deployment_cfg.sh
+
 EXP_NAME=$1
-SAVE_DIR=checkpoints/voc/${EXP_NAME}
-IMAGENET_PRETRAIN=/data/.pretrain_weights/ImageNetPretrained/MSRA/R-101.pkl                            # <-- change it to you path
-IMAGENET_PRETRAIN_TORCH=/data/.pretrain_weights/ImageNetPretrained/torchvision/resnet101-5d3b4d8f.pth  # <-- change it to you path
 SPLIT_ID=$2
-NUM_GPUS=1
+
+SAVE_DIR=$VOC_BASE_SAVE_DIR/${EXP_NAME}
 
 # ------------------------------- Base Pre-train ---------------------------------- #
 python3 main.py --num-gpus $NUM_GPUS --config-file configs/voc/defrcn_det_r101_base${SPLIT_ID}.yaml     \
