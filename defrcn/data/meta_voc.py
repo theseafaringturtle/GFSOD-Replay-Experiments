@@ -32,7 +32,7 @@ def load_filtered_voc_instances(
                     split_dir, "box_{}shot_{}_train.txt".format(shot, cls)
                 )
             ) as f:
-                fileids_ = np.loadtxt(f, dtype=np.str).tolist()
+                fileids_ = np.loadtxt(f, dtype=str).tolist()
                 if isinstance(fileids_, str):
                     fileids_ = [fileids_]
                 fileids_ = [
@@ -43,7 +43,7 @@ def load_filtered_voc_instances(
         with PathManager.open(
             os.path.join(dirname, "ImageSets", "Main", split + ".txt")
         ) as f:
-            fileids = np.loadtxt(f, dtype=np.str)
+            fileids = np.loadtxt(f, dtype=str)
 
     dicts = []
     if is_shots:
