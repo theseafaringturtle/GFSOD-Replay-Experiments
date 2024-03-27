@@ -20,7 +20,6 @@ DATASETS:
   TRAIN: ('coco14_trainval_novel_5shot_seedx',)
   TEST: ('coco14_test_novel',)
 SOLVER:
-  IMS_PER_BATCH: 16
   BASE_LR: 0.01
   STEPS: (2000,)
   MAX_ITER: 2500
