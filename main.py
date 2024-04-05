@@ -3,6 +3,8 @@ from detectron2.utils import comm
 from detectron2.engine import launch
 from detectron2.data import MetadataCatalog
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.utils.events import CommonMetricPrinter, JSONWriter
+
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import DatasetEvaluators, verify_results
 from defrcn.engine import DefaultTrainer, default_argument_parser, default_setup
@@ -31,6 +33,17 @@ class Trainer(DefaultTrainer):
         if len(evaluator_list) == 1:
             return evaluator_list[0]
         return DatasetEvaluators(evaluator_list)
+
+    def build_writers(self):
+        """
+        Minor change to get rid of default TensorboardXWriter
+        """
+        # Assume the default print/log frequency.
+        return [
+            # It may not always print what you want to see, since it prints "common" metrics only.
+            CommonMetricPrinter(self.max_iter),
+            JSONWriter(os.path.join(self.cfg.OUTPUT_DIR, "metrics.json")),
+        ]
 
 
 def setup(args):
