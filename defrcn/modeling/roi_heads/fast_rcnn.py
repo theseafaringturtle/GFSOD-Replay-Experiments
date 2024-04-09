@@ -11,6 +11,8 @@ from detectron2.layers import batched_nms, cat
 from detectron2.structures import Boxes, Instances
 from detectron2.utils.events import get_event_storage
 
+from etf_head import ETFHead, DRLoss
+
 ROI_HEADS_OUTPUT_REGISTRY = Registry("ROI_HEADS_OUTPUT")
 ROI_HEADS_OUTPUT_REGISTRY.__doc__ = """
 Registry for the output layers in ROI heads in a generalized R-CNN model."""
@@ -140,7 +142,8 @@ class FastRCNNOutputs(object):
     def __init__(
         self,
         box2box_transform,
-        pred_class_logits,
+        class_features,
+        etf_head,
         pred_proposal_deltas,
         proposals,
         smooth_l1_beta,
@@ -149,9 +152,8 @@ class FastRCNNOutputs(object):
         Args:
             box2box_transform (Box2BoxTransform/Box2BoxTransformRotated):
                 box2box transform instance for proposal-to-detection transformations.
-            pred_class_logits (Tensor): A tensor of shape (R, K + 1) storing the predicted class
-                logits for all R predicted object instances.
-                Each row corresponds to a predicted object instance.
+            class_features (Tensor): A tensor of shape (BATCH_SIZE_PER_IMAGE * BATCH_SIZE, num_features)
+                Stores the class features for each ROI proposal
             pred_proposal_deltas (Tensor): A tensor of shape (R, K * B) or (R, B) for
                 class-specific or class-agnostic regression. It stores the predicted deltas that
                 transform proposals into final box detections.
@@ -167,8 +169,8 @@ class FastRCNNOutputs(object):
                 set to +inf, the loss becomes constant 0.
         """
         self.box2box_transform = box2box_transform
-        self.num_preds_per_image = [len(p) for p in proposals]
-        self.pred_class_logits = pred_class_logits
+        self.num_preds_per_image = [len(p) for p in proposals] # [BATCH_SIZE_PER_IMAGE, x batch_size]
+        self.class_features = class_features
         self.pred_proposal_deltas = pred_proposal_deltas
         self.smooth_l1_beta = smooth_l1_beta
 
@@ -186,13 +188,21 @@ class FastRCNNOutputs(object):
             assert proposals[0].has("gt_classes")
             self.gt_classes = cat([p.gt_classes for p in proposals], dim=0)
 
-    def _log_accuracy(self):
+        self.etf_head = etf_head
+        self.dr_loss = DRLoss(etf_head, rectify_imbalance=False)
+
+    def _log_accuracy(self, class_logits):
         """
         Log the accuracy metrics to EventStorage.
         """
         num_instances = self.gt_classes.numel()
-        pred_classes = self.pred_class_logits.argmax(dim=1)
-        bg_class_ind = self.pred_class_logits.shape[1] - 1
+
+        pred_classes = class_logits.argmax(dim=-1)
+        bg_class_ind = class_logits.shape[1] - 1
+        # Note: prev shape was (1024, 5+1), res_raw should return the same.
+
+        # pred_classes = self.pred_class_logits.argmax(dim=1)
+        # bg_class_ind = self.pred_class_logits.shape[1] - 1
 
         fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)
         num_fg = fg_inds.nonzero().numel()
@@ -217,17 +227,20 @@ class FastRCNNOutputs(object):
                 "fast_rcnn/false_negative", num_false_negative / num_fg
             )
 
-    def softmax_cross_entropy_loss(self):
+    def classification_loss(self):
         """
         Compute the softmax cross entropy loss for box classification.
 
         Returns:
             scalar Tensor
         """
-        self._log_accuracy()
-        return F.cross_entropy(
-            self.pred_class_logits, self.gt_classes, reduction="mean"
-        )
+        class_logits = self.etf_head.predict_logits(self.class_features)
+        self._log_accuracy(class_logits)
+        print(f"Shapes: {self.class_features.shape}, {self.gt_classes.shape}")
+        return self.dr_loss(self.class_features, self.gt_classes)
+        # return F.cross_entropy(
+        #     self.pred_class_logits, self.gt_classes, reduction="mean"
+        # )
 
     def smooth_l1_loss(self):
         """
@@ -243,7 +256,7 @@ class FastRCNNOutputs(object):
         cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
         device = self.pred_proposal_deltas.device
 
-        bg_class_ind = self.pred_class_logits.shape[1] - 1
+        bg_class_ind = self.etf_head.num_classes - 1
 
         # Box delta loss is only computed between the prediction for the gt class k
         # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
@@ -296,7 +309,7 @@ class FastRCNNOutputs(object):
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
         """
         return {
-            "loss_cls": self.softmax_cross_entropy_loss(),
+            "loss_cls": self.classification_loss(),
             "loss_box_reg": self.smooth_l1_loss(),
         }
 
@@ -327,7 +340,9 @@ class FastRCNNOutputs(object):
                 Element i has shape (Ri, K + 1), where Ri is the number of predicted objects
                 for image i.
         """
-        probs = F.softmax(self.pred_class_logits, dim=-1)
+        class_logits = self.etf_head.predict_logits(self.class_features)
+        probs = F.softmax(class_logits, dim=-1)
+        # probs = F.softmax(self.pred_class_logits, dim=-1)
         return probs.split(self.num_preds_per_image, dim=0)
 
     def inference(self, score_thresh, nms_thresh, topk_per_image):
@@ -382,14 +397,15 @@ class FastRCNNOutputLayers(nn.Module):
         # The prediction layer for num_classes foreground classes and one
         # background class
         # (hence + 1)
-        self.cls_score = nn.Linear(input_size, num_classes + 1)
+        # self.cls_score = nn.Linear(input_size, num_classes + 1)
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         self.bbox_pred = nn.Linear(input_size, num_bbox_reg_classes * box_dim)
 
-        nn.init.normal_(self.cls_score.weight, std=0.01)
+        # nn.init.normal_(self.cls_score.weight, std=0.01)
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
-        for l in [self.cls_score, self.bbox_pred]:
-            nn.init.constant_(l.bias, 0)
+        nn.init.constant_(self.bbox_pred.bias, 0)
+        # for l in [self.cls_score, self.bbox_pred]:
+        #     nn.init.constant_(l.bias, 0)
 
         self._do_cls_dropout = cfg.MODEL.ROI_HEADS.CLS_DROPOUT
         self._dropout_ratio = cfg.MODEL.ROI_HEADS.DROPOUT_RATIO
@@ -399,9 +415,9 @@ class FastRCNNOutputLayers(nn.Module):
             x = torch.flatten(x, start_dim=1)
         proposal_deltas = self.bbox_pred(x)
 
-        if self._do_cls_dropout:
-            x = F.dropout(x, self._dropout_ratio, training=self.training)
-        scores = self.cls_score(x)
+        # if self._do_cls_dropout:
+        #     x = F.dropout(x, self._dropout_ratio, training=self.training)
+        # scores = self.cls_score(x)
 
-        return scores, proposal_deltas
+        return proposal_deltas
 

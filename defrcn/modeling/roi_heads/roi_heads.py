@@ -13,6 +13,8 @@ from detectron2.modeling.box_regression import Box2BoxTransform
 from detectron2.structures import Boxes, Instances, pairwise_iou
 from detectron2.modeling.backbone.resnet import BottleneckBlock, make_stage
 from detectron2.modeling.proposal_generator.proposal_utils import add_ground_truth_to_proposals
+
+from etf_head import ETFHead
 from .box_head import build_box_head
 from .fast_rcnn import ROI_HEADS_OUTPUT_REGISTRY, FastRCNNOutputLayers, FastRCNNOutputs
 
@@ -297,10 +299,13 @@ class Res5ROIHeads(ROIHeads):
         )
 
         self.res5, out_channels = self._build_res5_block(cfg)
+        # Note: this is set to FastRCNNOutputLayers in config
         output_layer = cfg.MODEL.ROI_HEADS.OUTPUT_LAYER
         self.box_predictor = ROI_HEADS_OUTPUT_REGISTRY.get(output_layer)(
             cfg, out_channels, self.num_classes, self.cls_agnostic_bbox_reg
         )
+        print(f"Creating ETF head with {self.num_classes+1} classes, {out_channels} in_features")
+        self.etf_head = ETFHead(self.num_classes+1, out_channels)
 
     def _build_res5_block(self, cfg):
         # fmt: off
@@ -350,14 +355,15 @@ class Res5ROIHeads(ROIHeads):
             [features[f] for f in self.in_features], proposal_boxes
         )
         feature_pooled = box_features.mean(dim=[2, 3])  # pooled to 1x1
-        pred_class_logits, pred_proposal_deltas = self.box_predictor(
+        # Note: set to FastRCNNOutputLayers in config
+        pred_proposal_deltas = self.box_predictor(
             feature_pooled
         )
-        del feature_pooled
 
         outputs = FastRCNNOutputs(
             self.box2box_transform,
-            pred_class_logits,
+            feature_pooled,
+            self.etf_head,
             pred_proposal_deltas,
             proposals,
             self.smooth_l1_beta,
@@ -498,6 +504,7 @@ class StandardROIHeads(ROIHeads):
         )
         del box_features
 
+        # Params changed, need to refactor etf head out later
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             pred_class_logits,
