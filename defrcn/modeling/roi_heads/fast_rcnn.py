@@ -236,7 +236,7 @@ class FastRCNNOutputs(object):
         """
         class_logits = self.etf_head.predict_logits(self.class_features)
         self._log_accuracy(class_logits)
-        print(f"Shapes: {self.class_features.shape}, {self.gt_classes.shape}")
+        # print(f"Shapes: {self.class_features.shape}, {self.gt_classes.shape}")
         return self.dr_loss(self.class_features, self.gt_classes)
         # return F.cross_entropy(
         #     self.pred_class_logits, self.gt_classes, reduction="mean"
