@@ -189,7 +189,7 @@ class FastRCNNOutputs(object):
             self.gt_classes = cat([p.gt_classes for p in proposals], dim=0)
 
         self.etf_head = etf_head
-        self.dr_loss = DRLoss(etf_head, rectify_imbalance=False)
+        self.dr_loss = DRLoss(etf_head, rectify_imbalance=False, loss_weight=1.0)
 
     def _log_accuracy(self, class_logits):
         """
