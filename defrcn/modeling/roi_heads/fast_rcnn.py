@@ -397,8 +397,8 @@ class FastRCNNOutputLayers(nn.Module):
         # The prediction layer for num_classes foreground classes and one
         # background class
         # (hence + 1)
-        self.lin1 = nn.Linear(input_size, input_size / 2)
-        self.lin2 = nn.Linear(input_size / 2, input_size)
+        self.lin1 = nn.Linear(input_size, input_size // 2)
+        self.lin2 = nn.Linear(input_size // 2, input_size)
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         self.bbox_pred = nn.Linear(input_size, num_bbox_reg_classes * box_dim)
 
