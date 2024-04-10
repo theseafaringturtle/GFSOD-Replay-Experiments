@@ -304,8 +304,8 @@ class Res5ROIHeads(ROIHeads):
         self.box_predictor = ROI_HEADS_OUTPUT_REGISTRY.get(output_layer)(
             cfg, out_channels, self.num_classes, self.cls_agnostic_bbox_reg
         )
-        print(f"Creating ETF head with {self.num_classes+1} classes, {out_channels} in_features")
-        self.etf_head = ETFHead(self.num_classes+1, out_channels)
+        print(f"Creating ETF head with {self.num_classes + 1} classes, {out_channels} in_features")
+        self.etf_head = ETFHead(self.num_classes + 1, out_channels)
 
     def _build_res5_block(self, cfg):
         # fmt: off
@@ -356,7 +356,7 @@ class Res5ROIHeads(ROIHeads):
         )
         feature_pooled = box_features.mean(dim=[2, 3])  # pooled to 1x1
         # Note: set to FastRCNNOutputLayers in config
-        pred_proposal_deltas = self.box_predictor(
+        feature_pooled, pred_proposal_deltas = self.box_predictor(
             feature_pooled
         )
 

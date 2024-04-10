@@ -189,7 +189,7 @@ class FastRCNNOutputs(object):
             self.gt_classes = cat([p.gt_classes for p in proposals], dim=0)
 
         self.etf_head = etf_head
-        self.dr_loss = DRLoss(etf_head, rectify_imbalance=False, loss_weight=1.0)
+        self.dr_loss = DRLoss(self.etf_head, rectify_imbalance=False, loss_weight=1.0)
 
     def _log_accuracy(self, class_logits):
         """
@@ -397,15 +397,17 @@ class FastRCNNOutputLayers(nn.Module):
         # The prediction layer for num_classes foreground classes and one
         # background class
         # (hence + 1)
-        # self.cls_score = nn.Linear(input_size, num_classes + 1)
+        self.lin1 = nn.Linear(input_size, input_size / 2)
+        self.lin2 = nn.Linear(input_size / 2, input_size)
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         self.bbox_pred = nn.Linear(input_size, num_bbox_reg_classes * box_dim)
 
-        # nn.init.normal_(self.cls_score.weight, std=0.01)
+        nn.init.normal_(self.lin1.weight, std=0.01)
+        nn.init.normal_(self.lin2.weight, std=0.01)
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
         nn.init.constant_(self.bbox_pred.bias, 0)
-        # for l in [self.cls_score, self.bbox_pred]:
-        #     nn.init.constant_(l.bias, 0)
+        for l in [self.lin1, self.lin2, self.bbox_pred]:
+            nn.init.constant_(l.bias, 0)
 
         self._do_cls_dropout = cfg.MODEL.ROI_HEADS.CLS_DROPOUT
         self._dropout_ratio = cfg.MODEL.ROI_HEADS.DROPOUT_RATIO
@@ -415,9 +417,10 @@ class FastRCNNOutputLayers(nn.Module):
             x = torch.flatten(x, start_dim=1)
         proposal_deltas = self.bbox_pred(x)
 
-        # if self._do_cls_dropout:
-        #     x = F.dropout(x, self._dropout_ratio, training=self.training)
-        # scores = self.cls_score(x)
+        x = self.lin1(x)
+        if self._do_cls_dropout:
+            x = F.dropout(x, self._dropout_ratio, training=self.training)
+        x = self.lin2(x)
 
-        return proposal_deltas
+        return x, proposal_deltas
 
