@@ -29,8 +29,8 @@ python3 tools/model_surgery.py --dataset voc --method remove                    
 BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_remove.pth
 
 # ------------------------------ Novel Fine-tuning -------------------------------- #
-# --> 1. FSRW-like, i.e. run seed0 10 times (the FSOD results on voc in most papers)
-for repeat_id in 0 1 2 3 4 5 6 7 8 9
+# --> 1. FSRW-like, using seed0 aka default files from TFA. Only one repeat since this is now deterministic across runs.
+for repeat_id in 0
 do
     for shot in 1 2 3 5 10   # if final, 10 -> 1 2 3 5 10
     do
