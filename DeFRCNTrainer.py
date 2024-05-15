@@ -7,7 +7,7 @@ from defrcn.engine import DefaultTrainer
 from defrcn.evaluation import DatasetEvaluators
 
 
-class Trainer(DefaultTrainer):
+class DeFRCNTrainer(DefaultTrainer):
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):

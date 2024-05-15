@@ -3,7 +3,8 @@ from detectron2.utils import comm
 from detectron2.engine import launch
 from detectron2.checkpoint import DetectionCheckpointer
 
-from DeFRCNTrainer import Trainer
+from CFATrainer import CFATrainer
+from DeFRCNTrainer import DeFRCNTrainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
@@ -32,17 +33,19 @@ def setup(args):
 def main(args):
     cfg = setup(args)
 
+    TrainerClass = CFATrainer if cfg.TRAINER == "DeFRCN" or cfg.TRAINER is None else DeFRCNTrainer
+
     if args.eval_only:
-        model = Trainer.build_model(cfg)
+        model = TrainerClass.build_model(cfg)
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        res = Trainer.test(cfg, model)
+        res = TrainerClass.test(cfg, model)
         if comm.is_main_process():
             verify_results(cfg, res)
         return res
 
-    trainer = Trainer(cfg)
+    trainer = TrainerClass(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()
 
