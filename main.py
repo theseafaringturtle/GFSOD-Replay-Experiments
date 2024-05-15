@@ -1,13 +1,12 @@
 import os
 from detectron2.utils import comm
 from detectron2.engine import launch
-from detectron2.data import MetadataCatalog
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.utils.events import CommonMetricPrinter, JSONWriter
 
+from DeFRCNTrainer import Trainer
 from defrcn.config import get_cfg, set_global_cfg
-from defrcn.evaluation import DatasetEvaluators, verify_results
-from defrcn.engine import DefaultTrainer, default_argument_parser, default_setup
+from defrcn.evaluation import verify_results
+from defrcn.engine import default_argument_parser, default_setup
 
 import torch
 
@@ -17,41 +16,6 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.use_deterministic_algorithms(True)
 
-
-class Trainer(DefaultTrainer):
-
-    @classmethod
-    def build_evaluator(cls, cfg, dataset_name, output_folder=None):
-        if output_folder is None:
-            output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        evaluator_list = []
-        evaluator_type = MetadataCatalog.get(dataset_name).evaluator_type
-        if evaluator_type == "coco":
-            from defrcn.evaluation import COCOEvaluator
-            evaluator_list.append(COCOEvaluator(dataset_name, True, output_folder))
-        if evaluator_type == "pascal_voc":
-            from defrcn.evaluation import PascalVOCDetectionEvaluator
-            return PascalVOCDetectionEvaluator(dataset_name)
-        if len(evaluator_list) == 0:
-            raise NotImplementedError(
-                "no Evaluator for the dataset {} with the type {}".format(
-                    dataset_name, evaluator_type
-                )
-            )
-        if len(evaluator_list) == 1:
-            return evaluator_list[0]
-        return DatasetEvaluators(evaluator_list)
-
-    def build_writers(self):
-        """
-        Minor change to get rid of default TensorboardXWriter
-        """
-        # Assume the default print/log frequency.
-        return [
-            # It may not always print what you want to see, since it prints "common" metrics only.
-            CommonMetricPrinter(self.max_iter),
-            JSONWriter(os.path.join(self.cfg.OUTPUT_DIR, "metrics.json")),
-        ]
 
 
 def setup(args):
