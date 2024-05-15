@@ -42,7 +42,7 @@ do
             OUTPUT_DIR=${SAVE_DIR}/defrcn_fsod_r101_novel${SPLIT_ID}/fsrw-like/${shot}shot_seed${seed}_repeat${repeat_id}
             python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                          \
                 --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                   \
-                       TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH}
+                       TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed}
             rm ${CONFIG_PATH}
             rm ${OUTPUT_DIR}/model_final.pth
         done
@@ -72,7 +72,7 @@ do
         OUTPUT_DIR=${SAVE_DIR}/defrcn_gfsod_r101_novel${SPLIT_ID}/tfa-like/${shot}shot_seed${seed}
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                            \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                     \
-                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH}
+                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed}
         rm ${CONFIG_PATH}
         rm ${OUTPUT_DIR}/model_final.pth
     done
@@ -95,7 +95,7 @@ do
         OUTPUT_DIR=${SAVE_DIR}/defrcn_fsod_r101_novel${SPLIT_ID}/tfa-like/${shot}shot_seed${seed}
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                             \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                      \
-                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH}
+                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed}
         rm ${CONFIG_PATH}
         rm ${OUTPUT_DIR}/model_final.pth
     done
