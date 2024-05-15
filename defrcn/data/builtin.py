@@ -56,7 +56,8 @@ def register_all_voc(root="datasets"):
         ("voc_2007_test_all2", "VOC2007", "test", "base_novel_2", 2),
         ("voc_2007_test_all3", "VOC2007", "test", "base_novel_3", 3),
     ]
-    for prefix in ["all", "novel"]:
+    # Few shot splits. All will contain base and novel class shots, memory (base) just base class shots, novel just novel ones
+    for prefix in ["all", "novel", "base"]:
         for sid in range(1, 4):
             for shot in [1, 2, 3, 5, 10]:
                 for year in [2007, 2012]:
@@ -69,11 +70,14 @@ def register_all_voc(root="datasets"):
                         img_file = "{}_{}shot_split_{}_trainval".format(
                             prefix, shot, sid
                         )
-                        keepclasses = (
-                            "base_novel_{}".format(sid)
-                            if prefix == "all"
-                            else "novel{}".format(sid)
-                        )
+                        if prefix == "all":
+                            keepclasses = "base_novel_{}".format(sid)
+                        elif prefix == "novel":
+                            keepclasses = "novel{}".format(sid)
+                        elif prefix == "base":
+                            keepclasses = "base{}".format(sid)
+                        else:
+                            raise Exception("Unknown class filter, only all, novel and base allowed")
                         METASPLITS.append(
                             (name, dirname, img_file, keepclasses, sid)
                         )
