@@ -10,3 +10,6 @@ export DATASET_BASE_DIR="datasets"
 
 export NUM_GPUS=1
 
+export FINETUNE=true
+
+export TRAINER="DeFRCNTrainer"

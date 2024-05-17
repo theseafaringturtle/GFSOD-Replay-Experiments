@@ -18,9 +18,9 @@ torch.backends.cudnn.benchmark = False
 torch.use_deterministic_algorithms(True)
 
 
-
 def setup(args):
     cfg = get_cfg()
+    cfg.set_new_allowed(True)
     cfg.merge_from_file(args.config_file)
     if args.opts:
         cfg.merge_from_list(args.opts)
@@ -33,7 +33,18 @@ def setup(args):
 def main(args):
     cfg = setup(args)
 
-    TrainerClass = CFATrainer if cfg.TRAINER == "DeFRCN" or cfg.TRAINER is None else DeFRCNTrainer
+    if cfg.TRAINER == "CFATrainer":
+        TrainerClass = CFATrainer
+        # Use joint fine-tuning as in TFA, since model has to process memory samples
+        cfg.defrost()
+        cfg.MODEL.ROI_HEADS.NUM_CLASSES = 20
+        # Replace training set with base-k + novel-k instead of just novel-k
+        cfg.DATASETS.TRAIN = (cfg.DATASETS.TRAIN[0].replace("_novel", "_all"), )
+        cfg.TEST.PCB_ENABLE = False
+        cfg.freeze()
+    else:
+        TrainerClass = DeFRCNTrainer
+
 
     if args.eval_only:
         model = TrainerClass.build_model(cfg)
