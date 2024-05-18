@@ -24,6 +24,8 @@ def setup(args):
     cfg.merge_from_file(args.config_file)
     if args.opts:
         cfg.merge_from_list(args.opts)
+    # Scale down base LR linearly. Can't hold good performance below 4 GPUs without changing it, and baseline used 8 GPUs.
+    cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR / (4.0 / args.num_gpus)
     cfg.freeze()
     set_global_cfg(cfg)
     default_setup(cfg, args)
@@ -44,7 +46,6 @@ def main(args):
         cfg.freeze()
     else:
         TrainerClass = DeFRCNTrainer
-
 
     if args.eval_only:
         model = TrainerClass.build_model(cfg)
