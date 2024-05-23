@@ -1,5 +1,5 @@
 import time
-
+import re
 import torch
 
 from DeFRCNTrainer import DeFRCNTrainer
@@ -16,7 +16,8 @@ class CFATrainer(DeFRCNTrainer):
         name_and_shots, seed = train_set_name.split("_seed")
         # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
         # It's a quick way to make sure we're using different images for base memory, just like in CFA
-        memory_config.DATASETS.TRAIN = [f"{name_and_shots.replace('novel', 'base')}_seed{int(seed) + 10}"]
+        memory_config.DATASETS.TRAIN = [f"{re.sub('novel|all', 'base', name_and_shots)}_seed{int(seed) + 10}"]
+        print(f"Using {memory_config.DATASETS.TRAIN} instead of {train_set_name} for memory")
         # Use same number of shots to be the same as k used in normal config, but different base images
         self.memory_loader = self.build_train_loader(memory_config)
         self._memory_loader_iter = iter(self.memory_loader)
