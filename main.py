@@ -25,7 +25,8 @@ def setup(args):
     if args.opts:
         cfg.merge_from_list(args.opts)
     # Scale down base LR linearly. Can't hold good performance below 4 GPUs without changing it, and baseline used 8 GPUs.
-    cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR / (4.0 / args.num_gpus)
+    num_devices = args.num_gpus if args.num_gpus > 0 else 1
+    cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR / (4.0 / num_devices)
     cfg.freeze()
     set_global_cfg(cfg)
     default_setup(cfg, args)
