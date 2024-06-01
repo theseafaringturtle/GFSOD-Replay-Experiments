@@ -5,6 +5,7 @@ from detectron2.checkpoint import DetectionCheckpointer
 
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
+from MEGA2Trainer import MEGA2Trainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
@@ -38,15 +39,12 @@ def main(args):
 
     if cfg.TRAINER == "CFATrainer":
         TrainerClass = CFATrainer
-        # Use joint fine-tuning as in TFA, since model has to process memory samples
-        cfg.defrost()
-        cfg.MODEL.ROI_HEADS.NUM_CLASSES = 20
-        # Replace training set with base-k + novel-k instead of just novel-k
-        cfg.DATASETS.TRAIN = (cfg.DATASETS.TRAIN[0].replace("_novel", "_all"), )
-        cfg.TEST.PCB_ENABLE = False
-        cfg.freeze()
-    else:
+    elif cfg.TRAINER == "MEGA2Trainer":
+        TrainerClass = MEGA2Trainer
+    elif cfg.TRAINER == "DeFRCNTrainer":
         TrainerClass = DeFRCNTrainer
+    else:
+        raise Exception(f"Unknown trainer: {cfg.TRAINER}")
 
     if args.eval_only:
         model = TrainerClass.build_model(cfg)
