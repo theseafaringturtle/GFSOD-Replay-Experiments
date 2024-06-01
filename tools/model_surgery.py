@@ -2,6 +2,7 @@ import os
 import torch
 import argparse
 
+from detectron2.utils.env import seed_all_rng
 
 def surgery_loop(args, surgery):
 
@@ -94,5 +95,5 @@ if __name__ == '__main__':
         TAR_SIZE = 20
     else:
         raise NotImplementedError
-
+    seed_all_rng(0)
     main(args)
