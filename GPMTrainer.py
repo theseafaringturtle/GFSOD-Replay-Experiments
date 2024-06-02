@@ -5,6 +5,7 @@ from typing import Tuple
 import numpy as np
 import torch
 from detectron2.structures import Instances
+from detectron2.utils.comm import get_world_size
 from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.hooks import RemovableHandle
@@ -15,45 +16,19 @@ from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feat
 
 
 class FasterRCNNFeatureMap(FeatureMap):
-    def __init__(self, multi_gpu=False):
+    def __init__(self, multi_gpu=False, minibatch_size: int = 8):
         super().__init__()
         # Detector layers only for now
-        # self.layer_names = ['proposal_generator.rpn_head.conv', 'roi_heads.res5.0.shortcut',
-        #                     'roi_heads.res5.0.conv1', 'roi_heads.res5.0.conv2',
-        #                     'roi_heads.res5.0.conv3', 'roi_heads.res5.1.conv1',
-        #                     'roi_heads.res5.1.conv2', 'roi_heads.res5.1.conv3',
-        #                     'roi_heads.res5.2.conv1', 'roi_heads.res5.2.conv2',
-        #                     'roi_heads.res5.2.conv3']
         # self.layer_names = ['backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
         #                     'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
         #                     'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3']
-        self.layer_names = ['backbone.res4.0.shortcut',
-                   'backbone.res4.0.conv1', 'backbone.res4.0.conv2', 'backbone.res4.0.conv3',
-                   'backbone.res4.1.conv1', 'backbone.res4.1.conv2', 'backbone.res4.1.conv3',
-                   'backbone.res4.2.conv1', 'backbone.res4.2.conv2', 'backbone.res4.2.conv3', 'backbone.res4.3.conv1',
-                   'backbone.res4.3.conv2', 'backbone.res4.3.conv3', 'backbone.res4.4.conv1', 'backbone.res4.4.conv2',
-                   'backbone.res4.4.conv3', 'backbone.res4.5.conv1', 'backbone.res4.5.conv2', 'backbone.res4.5.conv3',
-                   'backbone.res4.6.conv1', 'backbone.res4.6.conv2', 'backbone.res4.6.conv3', 'backbone.res4.7.conv1',
-                   'backbone.res4.7.conv2', 'backbone.res4.7.conv3', 'backbone.res4.8.conv1', 'backbone.res4.8.conv2',
-                   'backbone.res4.8.conv3', 'backbone.res4.9.conv1', 'backbone.res4.9.conv2', 'backbone.res4.9.conv3',
-                   'backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
-                   'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
-                   'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3',
-                   'backbone.res4.13.conv1', 'backbone.res4.13.conv2', 'backbone.res4.13.conv3',
-                   'backbone.res4.14.conv1', 'backbone.res4.14.conv2', 'backbone.res4.14.conv3',
-                   'backbone.res4.15.conv1', 'backbone.res4.15.conv2', 'backbone.res4.15.conv3',
-                   'backbone.res4.16.conv1', 'backbone.res4.16.conv2', 'backbone.res4.16.conv3',
-                   'backbone.res4.17.conv1', 'backbone.res4.17.conv2', 'backbone.res4.17.conv3',
-                   'backbone.res4.18.conv1', 'backbone.res4.18.conv2', 'backbone.res4.18.conv3',
-                   'backbone.res4.19.conv1', 'backbone.res4.19.conv2', 'backbone.res4.19.conv3',
-                   'backbone.res4.20.conv1', 'backbone.res4.20.conv2', 'backbone.res4.20.conv3',
-                   'backbone.res4.21.conv1', 'backbone.res4.21.conv2', 'backbone.res4.21.conv3',
-                   'backbone.res4.22.conv1', 'backbone.res4.22.conv2', 'backbone.res4.22.conv3']
+        self.layer_names = ['backbone.res4.0.conv1', 'backbone.res4.0.conv2', 'backbone.res4.0.conv3',
+                            'proposal_generator.rpn_head.conv']
 
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
             self.layer_names = ["module." + name for name in self.layer_names]
-        self.samples = {name: 2 for name in self.layer_names}
+        self.samples = {name: minibatch_size for name in self.layer_names}
 
 
 def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
@@ -88,14 +63,18 @@ class GPMTrainer(DeFRCNTrainer):
         self.device = torch.device(self.cfg.MODEL.DEVICE)
 
         self.model.fmap = FasterRCNNFeatureMap(
-            isinstance(self.model, DataParallel) or isinstance(self.model, DistributedDataParallel))
+            isinstance(self.model, DataParallel) or isinstance(self.model, DistributedDataParallel),
+            self.cfg.SOLVER.IMS_PER_BATCH // get_world_size()
+        )
 
         hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
 
         # Create random data according to detectron2 format
         random_samples: [dict] = [create_random_sample((3, 1300, 800))]
 
-        determine_conv_output_sizes(self.model, random_samples)
+        next(self._memory_loader_iter);
+        next(self._memory_loader_iter);
+        determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
         self.model.fmap.clear_activations()
 
         threshold = {name: 0.973 for name in self.model.fmap.layer_names}

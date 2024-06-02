@@ -10,13 +10,8 @@ from torch import nn, Tensor
 from torch.utils.hooks import RemovableHandle
 from tqdm import tqdm
 
-backbone_layers = ['backbone.stem.conv1', 'backbone.res2.0.shortcut', 'backbone.res2.0.conv1', 'backbone.res2.0.conv2',
-                   'backbone.res2.0.conv3', 'backbone.res2.1.conv1', 'backbone.res2.1.conv2', 'backbone.res2.1.conv3',
-                   'backbone.res2.2.conv1', 'backbone.res2.2.conv2', 'backbone.res2.2.conv3',
-                   'backbone.res3.0.shortcut', 'backbone.res3.0.conv1', 'backbone.res3.0.conv2',
-                   'backbone.res3.0.conv3', 'backbone.res3.1.conv1', 'backbone.res3.1.conv2', 'backbone.res3.1.conv3',
-                   'backbone.res3.2.conv1', 'backbone.res3.2.conv2', 'backbone.res3.2.conv3', 'backbone.res3.3.conv1',
-                   'backbone.res3.3.conv2', 'backbone.res3.3.conv3', 'backbone.res4.0.shortcut',
+# Note: res3 layers are always frozen
+backbone_layers = ['backbone.res4.0.shortcut',
                    'backbone.res4.0.conv1', 'backbone.res4.0.conv2', 'backbone.res4.0.conv3',
                    'backbone.res4.1.conv1', 'backbone.res4.1.conv2', 'backbone.res4.1.conv3',
                    'backbone.res4.2.conv1', 'backbone.res4.2.conv2', 'backbone.res4.2.conv3', 'backbone.res4.3.conv1',
@@ -118,9 +113,12 @@ class FeatureMap(ABC):
     def get_module(self, module_name: str):
         return self.modules[module_name]
 
-    def set_activation_for_layer(self, module_name: str, output: Tensor):
+    def set_activation_for_layer(self, module_name: str, input: Tensor):
         assert module_name in self.layer_names, f"Module {module_name} not in layers, allowed: {list(self.layer_names)}"
-        self.act[module_name] = output
+        if 0 in input.shape: # Don't mess activation map with 0-dim outputs
+            raise Exception(f"Empty dimension in {module_name}, if hooking roi_heads make sure valid proposals have been fed through")
+        else:
+            self.act[module_name] = input
 
     def get_activation_for_layer(self, module_name: str):
         return self.act[module_name]
@@ -198,6 +196,7 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
     print('Threshold: ', threshold)
     if not features:
         # After First Task
+        clock_start = time.perf_counter()
         for layer_name in mat_dict.keys():
             activation = mat_dict[layer_name]
             U, S, Vh = np.linalg.svd(activation, full_matrices=False)
@@ -206,6 +205,10 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
             sval_ratio = (S ** 2) / sval_total
             r = np.sum(np.cumsum(sval_ratio) < threshold[layer_name])  # +1
             features[layer_name] = U[:, 0:r]
+
+            clock_end = time.perf_counter()
+            print(f"SVD time for {layer_name}: {clock_end - clock_start}")
+            clock_start = clock_end
     else:
         for layer_name in mat_dict.keys():
             activation = mat_dict[layer_name]
