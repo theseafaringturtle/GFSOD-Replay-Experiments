@@ -1,3 +1,4 @@
+import time
 from abc import ABC
 from collections import OrderedDict
 from functools import partial
@@ -7,6 +8,7 @@ import numpy as np
 import torch
 from torch import nn, Tensor
 from torch.utils.hooks import RemovableHandle
+from tqdm import tqdm
 
 backbone_layers = ['backbone.stem.conv1', 'backbone.res2.0.shortcut', 'backbone.res2.0.conv1', 'backbone.res2.0.conv2',
                    'backbone.res2.0.conv3', 'backbone.res2.1.conv1', 'backbone.res2.1.conv2', 'backbone.res2.1.conv3',
@@ -149,10 +151,12 @@ class FeatureMap(ABC):
 
 def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
     # Ignoring output, we only care about activations
+    clock_start = time.perf_counter()
     _ = net(example_data)
-
+    clock_end_inf = time.perf_counter()
+    print(f"Representation inference time: {clock_end_inf - clock_start}")
     mats = dict()
-    for layer_name in net.fmap.layer_names:
+    for layer_name in tqdm(net.fmap.layer_names):
         bsz = net.fmap.samples.get(layer_name)
         k = 0
         if net.fmap.is_conv_layer(layer_name):
@@ -179,7 +183,8 @@ def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
             act = net.fmap.get_activation_for_layer(layer_name).detach().cpu().numpy()
             activation = act[0:bsz].transpose(1, 0)
             mats[layer_name] = activation
-
+    clock_end_comp = time.perf_counter()
+    print(f"Representation matrix computation time: {clock_end_comp - clock_end_inf}")
     print('-' * 30)
     print('Representation Matrix')
     print('-' * 30)

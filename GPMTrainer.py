@@ -24,9 +24,32 @@ class FasterRCNNFeatureMap(FeatureMap):
         #                     'roi_heads.res5.1.conv2', 'roi_heads.res5.1.conv3',
         #                     'roi_heads.res5.2.conv1', 'roi_heads.res5.2.conv2',
         #                     'roi_heads.res5.2.conv3']
-        self.layer_names = ['backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
-                            'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
-                            'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3']
+        # self.layer_names = ['backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
+        #                     'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
+        #                     'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3']
+        self.layer_names = ['backbone.res4.0.shortcut',
+                   'backbone.res4.0.conv1', 'backbone.res4.0.conv2', 'backbone.res4.0.conv3',
+                   'backbone.res4.1.conv1', 'backbone.res4.1.conv2', 'backbone.res4.1.conv3',
+                   'backbone.res4.2.conv1', 'backbone.res4.2.conv2', 'backbone.res4.2.conv3', 'backbone.res4.3.conv1',
+                   'backbone.res4.3.conv2', 'backbone.res4.3.conv3', 'backbone.res4.4.conv1', 'backbone.res4.4.conv2',
+                   'backbone.res4.4.conv3', 'backbone.res4.5.conv1', 'backbone.res4.5.conv2', 'backbone.res4.5.conv3',
+                   'backbone.res4.6.conv1', 'backbone.res4.6.conv2', 'backbone.res4.6.conv3', 'backbone.res4.7.conv1',
+                   'backbone.res4.7.conv2', 'backbone.res4.7.conv3', 'backbone.res4.8.conv1', 'backbone.res4.8.conv2',
+                   'backbone.res4.8.conv3', 'backbone.res4.9.conv1', 'backbone.res4.9.conv2', 'backbone.res4.9.conv3',
+                   'backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
+                   'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
+                   'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3',
+                   'backbone.res4.13.conv1', 'backbone.res4.13.conv2', 'backbone.res4.13.conv3',
+                   'backbone.res4.14.conv1', 'backbone.res4.14.conv2', 'backbone.res4.14.conv3',
+                   'backbone.res4.15.conv1', 'backbone.res4.15.conv2', 'backbone.res4.15.conv3',
+                   'backbone.res4.16.conv1', 'backbone.res4.16.conv2', 'backbone.res4.16.conv3',
+                   'backbone.res4.17.conv1', 'backbone.res4.17.conv2', 'backbone.res4.17.conv3',
+                   'backbone.res4.18.conv1', 'backbone.res4.18.conv2', 'backbone.res4.18.conv3',
+                   'backbone.res4.19.conv1', 'backbone.res4.19.conv2', 'backbone.res4.19.conv3',
+                   'backbone.res4.20.conv1', 'backbone.res4.20.conv2', 'backbone.res4.20.conv3',
+                   'backbone.res4.21.conv1', 'backbone.res4.21.conv2', 'backbone.res4.21.conv3',
+                   'backbone.res4.22.conv1', 'backbone.res4.22.conv2', 'backbone.res4.22.conv3']
+
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
             self.layer_names = ["module." + name for name in self.layer_names]
