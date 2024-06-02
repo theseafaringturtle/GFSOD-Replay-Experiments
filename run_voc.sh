@@ -31,6 +31,8 @@ BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_remove.pth
 
 # ------------------------------ Novel Fine-tuning -------------------------------- #
 # --> 1. FSRW-like, using seed0 aka default files from TFA. Only one repeat since this is now deterministic across runs.
+if [[ $FSRW == true ]]
+then
 for repeat_id in 0
 do
     for shot in 1 2 3 5 10   # if final, 10 -> 1 2 3 5 10
@@ -50,7 +52,7 @@ do
     done
 done
 python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_fsod_r101_novel${SPLIT_ID}/fsrw-like --shot-list 1 2 3 5 10  # summarize all results
-
+fi
 
 # ----------------------------- Model Preparation --------------------------------- #
 python3 tools/model_surgery.py --dataset voc --method randinit                                \
