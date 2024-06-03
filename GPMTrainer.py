@@ -29,6 +29,8 @@ class FasterRCNNFeatureMap(FeatureMap):
         if multi_gpu:
             self.layer_names = ["module." + name for name in self.layer_names]
         self.samples = {name: minibatch_size for name in self.layer_names}
+        self.threshold = {name: 0.99 for name in self.layer_names}
+        self.threshold['proposal_generator.rpn_head.conv'] = 0.996
 
 
 def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
@@ -73,13 +75,12 @@ class GPMTrainer(DeFRCNTrainer):
         random_samples: [dict] = [create_random_sample((3, 1300, 800))]
 
         # next(self._memory_loader_iter)
-        determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
+        # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
+        determine_conv_output_sizes(self.model, [random_samples])
         self.model.fmap.clear_activations()
 
-        threshold = {name: 0.99 for name in self.model.fmap.layer_names}
-
         mat_dict = get_representation_matrix(self.model, next(self._memory_loader_iter))
-        features = update_GPM(self.model, mat_dict, threshold, features=dict())
+        features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
 
         for hook_handle in hooks:
             hook_handle.remove()
