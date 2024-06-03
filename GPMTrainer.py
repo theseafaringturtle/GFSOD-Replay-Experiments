@@ -76,7 +76,7 @@ class GPMTrainer(DeFRCNTrainer):
 
         # next(self._memory_loader_iter)
         # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
-        determine_conv_output_sizes(self.model, [random_samples])
+        determine_conv_output_sizes(self.model, random_samples)
         self.model.fmap.clear_activations()
 
         mat_dict = get_representation_matrix(self.model, next(self._memory_loader_iter))
