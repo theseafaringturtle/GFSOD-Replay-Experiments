@@ -115,8 +115,9 @@ class FeatureMap(ABC):
 
     def set_activation_for_layer(self, module_name: str, input: Tensor):
         assert module_name in self.layer_names, f"Module {module_name} not in layers, allowed: {list(self.layer_names)}"
-        if 0 in input.shape: # Don't mess activation map with 0-dim outputs
-            raise Exception(f"Empty dimension in {module_name}, if hooking roi_heads make sure valid proposals have been fed through")
+        if 0 in input.shape:  # Don't mess activation map with 0-dim outputs
+            raise Exception(
+                f"Empty dimension in {module_name}, if hooking roi_heads make sure valid proposals have been fed through")
         else:
             self.act[module_name] = input
 
@@ -154,7 +155,7 @@ def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
     clock_end_inf = time.perf_counter()
     print(f"Representation inference time: {clock_end_inf - clock_start}")
     mats = dict()
-    for layer_name in tqdm(net.fmap.layer_names):
+    for layer_name in net.fmap.layer_names:
         bsz = net.fmap.samples.get(layer_name)
         k = 0
         if net.fmap.is_conv_layer(layer_name):
@@ -162,15 +163,15 @@ def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
             in_channel = net.fmap.get_in_channel(layer_name)
             conv_width, conv_height = compute_conv_output_size(net.fmap.get_max_input_size(layer_name),
                                                                net.fmap.get_kernel_size(layer_name))
-            mat = np.zeros((kernel_size[0] * kernel_size[1] * in_channel, conv_width * conv_height * bsz))
-            act = net.fmap.get_activation_for_layer(layer_name).detach().cpu().numpy()
+            mat = torch.zeros((kernel_size[0] * kernel_size[1] * in_channel, conv_width * conv_height * bsz))
+            act = net.fmap.get_activation_for_layer(layer_name).detach()
             for kk in range(bsz):
                 for w_index in range(conv_width):
                     for h_index in range(conv_height):
                         patch = act[kk, :, w_index:kernel_size[0] + w_index, h_index:kernel_size[1] + h_index]
                         if patch.shape[0] != in_channel or patch.shape[1] != kernel_size[1] or patch.shape[2] != \
                                 kernel_size[0]:
-                            padded = np.zeros((in_channel, kernel_size[1], kernel_size[0]))
+                            padded = torch.zeros((in_channel, kernel_size[1], kernel_size[0]))
                             padded[:patch.shape[0], :patch.shape[1], :patch.shape[2]] = patch
                             mat[:, k] = padded.reshape(-1)
                         else:
@@ -178,7 +179,7 @@ def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
                         k += 1
             mats[layer_name] = mat
         else:
-            act = net.fmap.get_activation_for_layer(layer_name).detach().cpu().numpy()
+            act = net.fmap.get_activation_for_layer(layer_name).detach()
             activation = act[0:bsz].transpose(1, 0)
             mats[layer_name] = activation
     clock_end_comp = time.perf_counter()
@@ -199,11 +200,11 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
         clock_start = time.perf_counter()
         for layer_name in mat_dict.keys():
             activation = mat_dict[layer_name]
-            U, S, Vh = np.linalg.svd(activation, full_matrices=False)
+            U, S, Vh = torch.linalg.svd(activation, full_matrices=False)
             # criteria (Eq-5)
             sval_total = (S ** 2).sum()
             sval_ratio = (S ** 2) / sval_total
-            r = np.sum(np.cumsum(sval_ratio) < threshold[layer_name])  # +1
+            r = torch.sum(torch.cumsum(sval_ratio.reshape(-1), dim=0) < threshold[layer_name])  # +1
             features[layer_name] = U[:, 0:r]
 
             clock_end = time.perf_counter()
@@ -212,12 +213,12 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
     else:
         for layer_name in mat_dict.keys():
             activation = mat_dict[layer_name]
-            U1, S1, Vh1 = np.linalg.svd(activation, full_matrices=False)
+            U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
             sval_total = (S1 ** 2).sum()
             # Projected Representation (Eq-8)
-            act_hat = activation - np.dot(np.dot(features[layer_name], features[layer_name].transpose(1, 0)),
-                                          activation)
-            U, S, Vh = np.linalg.svd(act_hat, full_matrices=False)
+            act_hat = activation - torch.matmul(
+                torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)), activation)
+            U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
             # criteria (Eq-9)
             sval_hat = (S ** 2).sum()
             sval_ratio = (S ** 2) / sval_total
@@ -234,7 +235,7 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
                 print('Skip Updating GPM for layer: {}'.format(layer_name))
                 continue
             # update GPM
-            Ui = np.hstack((features[layer_name], U[:, 0:r]))
+            Ui = torch.hstack((features[layer_name], U[:, 0:r]))
             if Ui.shape[1] > Ui.shape[0]:
                 features[layer_name] = Ui[:, 0:Ui.shape[0]]
             else:

@@ -72,12 +72,11 @@ class GPMTrainer(DeFRCNTrainer):
         # Create random data according to detectron2 format
         random_samples: [dict] = [create_random_sample((3, 1300, 800))]
 
-        next(self._memory_loader_iter);
-        next(self._memory_loader_iter);
+        # next(self._memory_loader_iter)
         determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
         self.model.fmap.clear_activations()
 
-        threshold = {name: 0.973 for name in self.model.fmap.layer_names}
+        threshold = {name: 0.99 for name in self.model.fmap.layer_names}
 
         mat_dict = get_representation_matrix(self.model, next(self._memory_loader_iter))
         features = update_GPM(self.model, mat_dict, threshold, features=dict())
@@ -88,7 +87,7 @@ class GPMTrainer(DeFRCNTrainer):
         self.feature_mat = []
         # Projection Matrix Precomputation
         for layer_name in self.model.fmap.layer_names:
-            Uf = torch.Tensor(np.dot(features[layer_name], features[layer_name].transpose(1, 0))).to(self.device)
+            Uf = torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)).to(self.device)
             print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
             self.feature_mat.append(Uf)
         self.model.train()
