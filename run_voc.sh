@@ -55,9 +55,20 @@ python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_fsod_r101_novel${S
 fi
 
 # ----------------------------- Model Preparation --------------------------------- #
-python3 tools/model_surgery.py --dataset voc --method randinit                                \
-    --src-path ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth                    \
-    --save-dir ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
+if [[ $PROVIDED_RANDINIT == true ]]
+then
+  # If you want to use same random initialisation for last layers as initial experiment
+  if [[ $FINETUNE != true ]]; then echo "FINETUNE is not true, are you sure you want to use the pretrained surgery model?"; fi
+  echo "Using provided model_reset_surgery"
+  mkdir -p ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
+  cp ./model_base_voc/model_reset_surgery${SPLIT_ID}.pth ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
+else
+  # Perform it yourself, though seed for randinit will not be the same as initial experiment
+  echo "Creating model_reset_surgery.pth"
+  python3 tools/model_surgery.py --dataset voc --method randinit                                \
+      --src-path ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth                    \
+      --save-dir ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
+fi
 BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
 
 
