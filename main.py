@@ -34,9 +34,8 @@ def setup(args):
     if args.opts:
         cfg.merge_from_list(args.opts)
     # Scale down base LR linearly. Can't hold good performance below 4 GPUs without changing it, and baseline used 8 GPUs.
-    REF_NUM_GPUS = 4
     num_devices = args.num_gpus if args.num_gpus > 0 else 1
-    if REF_NUM_GPUS != num_devices:
+    if num_devices != REF_NUM_GPUS or num_devices != REF_NUM_GPUS * 2:
         lr_factor = 1 / (float(REF_NUM_GPUS) / num_devices)
         logger.warning(f"LR scaled by {lr_factor}")
         cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR * lr_factor
