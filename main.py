@@ -1,3 +1,4 @@
+import logging
 import os
 from detectron2.utils import comm
 from detectron2.engine import launch
@@ -12,22 +13,40 @@ from defrcn.engine import default_argument_parser, default_setup
 
 import torch
 
+# Determinism
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-torch.use_deterministic_algorithms(True)
+if "1.8.2" in torch.__version__:
+    torch.use_deterministic_algorithms(True)
+else:
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
+# Original experiment settings
+REF_NUM_GPUS = 4
+REF_BATCH_SIZE = 16
 
 def setup(args):
+    logger = logging.getLogger(__name__)
     cfg = get_cfg()
     cfg.set_new_allowed(True)
     cfg.merge_from_file(args.config_file)
     if args.opts:
         cfg.merge_from_list(args.opts)
     # Scale down base LR linearly. Can't hold good performance below 4 GPUs without changing it, and baseline used 8 GPUs.
+    REF_NUM_GPUS = 4
     num_devices = args.num_gpus if args.num_gpus > 0 else 1
-    cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR / (4.0 / num_devices)
+    if REF_NUM_GPUS != num_devices:
+        lr_factor = 1 / (float(REF_NUM_GPUS) / num_devices)
+        logger.warning(f"LR scaled by {lr_factor}")
+        cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR * lr_factor
+    # Scale iterations with batch size, so we don't need to change all configs.
+    # Batch size will still have to be adjusted by the user in configs/Cbase-RCNN.yaml
+    if cfg.SOLVER.IMS_PER_BATCH != REF_BATCH_SIZE:
+        batch_factor = 1 / (cfg.SOLVER.IMS_PER_BATCH / float(REF_BATCH_SIZE))
+        logger.warning(f"Iterations scaled by {batch_factor}")
+        cfg.SOLVER.STEPS = [int(step * batch_factor) for step in cfg.SOLVER.STEPS]
+        cfg.SOLVER.MAX_ITER = int(cfg.SOLVER.MAX_ITER * batch_factor)
     cfg.freeze()
     set_global_cfg(cfg)
     default_setup(cfg, args)

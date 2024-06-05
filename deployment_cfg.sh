@@ -8,8 +8,10 @@ export IMAGENET_PRETRAIN_TORCH="./ImageNetPretrained/torchvision/resnet101-5d3b4
 
 export DATASET_BASE_DIR="datasets"
 
-export NUM_GPUS=1
+export NUM_GPUS=2
 
 export FINETUNE=true
+
+export GFSOD=TRUE
 
 export TRAINER="DeFRCNTrainer"
