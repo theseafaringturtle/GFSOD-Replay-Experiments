@@ -22,8 +22,7 @@ class FasterRCNNFeatureMap(FeatureMap):
         # self.layer_names = ['backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
         #                     'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
         #                     'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3']
-        self.layer_names = ['backbone.res4.0.conv1', 'backbone.res4.0.conv2', 'backbone.res4.0.conv3',
-                            'proposal_generator.rpn_head.conv']
+        self.layer_names = ['backbone.res4.0.conv1']
 
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
@@ -121,9 +120,6 @@ class GPMTrainer(DeFRCNTrainer):
                 params.grad.data = layer_gradient - torch.mm(layer_gradient.view(sz, -1),
                                                              self.feature_mat[feature_max_index]).view(params.size())
                 feature_max_index += 1
-            # Fill biases and BN with 0s when fine-tuning
-            elif not is_feature_weight:
-                params.grad.data.fill_(0)
 
         # self.update_gradient(self.model, grad_proj)
 
