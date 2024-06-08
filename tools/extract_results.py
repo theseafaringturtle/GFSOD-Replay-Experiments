@@ -45,6 +45,11 @@ def main():
                 if 'bbox/AP' in info:
                     has_final_metrics = True
                     info.pop('iteration', None)  # not needed
+                    # Remove bbox/ part as superfluous
+                    keys = list(info.keys())
+                    for key in keys:
+                        info[key.replace("bbox/", "")] = info[key]
+                        info.pop(key)
                     dict_results[seed] = info
             if not has_final_metrics:
                 log.error(f"File {fpath} does not contain final metrics, likely didn't finish or errored out")
@@ -68,6 +73,8 @@ def main():
             for key in header_keys:
                 metrics_array.append(metrics[key])
             results.append(metrics_array)
+
+        results.sort(key=lambda x: x[0])
 
         results_np = np.array(results)
         avg = np.mean(results_np, axis=0).tolist()
