@@ -6,6 +6,7 @@ from detectron2.checkpoint import DetectionCheckpointer
 
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
+from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
@@ -61,6 +62,8 @@ def main(args):
         TrainerClass = MEGA2Trainer
     elif cfg.TRAINER == "DeFRCNTrainer":
         TrainerClass = DeFRCNTrainer
+    elif cfg.TRAINER == "GPMTrainer":
+        TrainerClass = GPMTrainer
     else:
         raise Exception(f"Unknown trainer: {cfg.TRAINER}")
 
