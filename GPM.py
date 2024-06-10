@@ -148,12 +148,22 @@ class FeatureMap(ABC):
         return module.in_channels
 
 
-def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
+def get_representation_matrix(net, data_iterator) -> Dict[str, Tensor]:
     # Ignoring output, we only care about activations
     clock_start = time.perf_counter()
-    _ = net(example_data)
+    # Sanity check
+    # Make sure at least y instances are predicted through RPN, otherwise number of samples passing through ROI heads will be 0
+    roi_activations = 0
+    min_activations = min(net.fmap.samples.values())
+    num_act_iterations = 0
+    while roi_activations < min_activations and num_act_iterations < 200:
+        print(f"{roi_activations}/{min_activations} activations found, continuing")
+        example_out = net(next(data_iterator))
+        for example_image_results in example_out:
+            roi_activations += len(example_image_results['instances'])
     clock_end_inf = time.perf_counter()
     print(f"Representation inference time: {clock_end_inf - clock_start}")
+    # Get representation matrix (note: largest input size was used as baseline for convolutions in determine_conv_output_sizes)
     mats = dict()
     for layer_name in net.fmap.layer_names:
         bsz = net.fmap.samples.get(layer_name)
@@ -169,6 +179,7 @@ def get_representation_matrix(net, example_data) -> Dict[str, Tensor]:
                 for w_index in range(conv_width):
                     for h_index in range(conv_height):
                         patch = act[kk, :, w_index:kernel_size[0] + w_index, h_index:kernel_size[1] + h_index]
+                        # If input was smaller, pad with 0s
                         if patch.shape[0] != in_channel or patch.shape[1] != kernel_size[1] or patch.shape[2] != \
                                 kernel_size[0]:
                             padded = torch.zeros((in_channel, kernel_size[1], kernel_size[0]))

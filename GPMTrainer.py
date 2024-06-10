@@ -48,6 +48,11 @@ class GPMTrainer(DeFRCNTrainer):
 
     def __init__(self, cfg):
         super().__init__(cfg)
+
+    def resume_or_load(self, resume=True):
+        # Load checkpoint
+        super().resume_or_load(resume)
+
         # While it's the same code as memory methods,
         # this is for getting the base samples to build initial representation matrix.
         # Memory is not used in optimisation loop
@@ -78,7 +83,7 @@ class GPMTrainer(DeFRCNTrainer):
         determine_conv_output_sizes(self.model, random_samples)
         self.model.fmap.clear_activations()
 
-        mat_dict = get_representation_matrix(self.model, next(self._memory_loader_iter))
+        mat_dict = get_representation_matrix(self.model, self._memory_loader_iter)
         features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
 
         for hook_handle in hooks:
