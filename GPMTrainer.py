@@ -13,6 +13,7 @@ from torch.utils.hooks import RemovableHandle
 from DeFRCNTrainer import DeFRCNTrainer
 from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feature_map_hooks, \
     determine_conv_output_sizes
+from MemoryTrainer import MemoryTrainer
 
 
 class FasterRCNNFeatureMap(FeatureMap):
@@ -44,7 +45,7 @@ def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
     return sample
 
 
-class GPMTrainer(DeFRCNTrainer):
+class GPMTrainer(MemoryTrainer):
 
     def __init__(self, cfg):
         super().__init__(cfg)
@@ -56,15 +57,6 @@ class GPMTrainer(DeFRCNTrainer):
         # While it's the same code as memory methods,
         # this is for getting the base samples to build initial representation matrix.
         # Memory is not used in optimisation loop
-        memory_config = self.cfg.clone()
-        memory_config.defrost()
-        train_set_name = memory_config.DATASETS.TRAIN[0]
-        name_and_shots, seed = train_set_name.split("_seed")
-        memory_config.DATASETS.TRAIN = [f"{re.sub('novel|all', 'base', name_and_shots)}_seed{int(seed) + 10}"]
-        print(f"Using {memory_config.DATASETS.TRAIN} instead of {train_set_name} for memory")
-        # Use same number of shots to be the same as k used in normal config, but different base images
-        self.memory_loader = self.build_train_loader(memory_config)
-        self._memory_loader_iter = iter(self.memory_loader)
 
         self.device = torch.device(self.cfg.MODEL.DEVICE)
 
@@ -82,8 +74,8 @@ class GPMTrainer(DeFRCNTrainer):
         # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
         determine_conv_output_sizes(self.model, random_samples)
         self.model.fmap.clear_activations()
-
-        mat_dict = get_representation_matrix(self.model, self._memory_loader_iter)
+        self.calculate_activations()
+        mat_dict = get_representation_matrix(self.model)
         features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
 
         for hook_handle in hooks:
@@ -104,7 +96,7 @@ class GPMTrainer(DeFRCNTrainer):
         # Calculate current gradients
         self.optimizer.zero_grad()
 
-        data = next(self._data_loader_iter)
+        data = self.get_current_batch()
         data_time = time.perf_counter() - start
 
         loss_dict = self.model(data)
@@ -137,17 +129,18 @@ class GPMTrainer(DeFRCNTrainer):
         """
         self.optimizer.step()
 
-    def get_gradient(self, model):
-        gradient = []
-        for p in model.parameters():
-            if p.requires_grad:
-                gradient.append(p.grad.view(-1))
-        return torch.cat(gradient)
-
-    def update_gradient(self, model, new_grad):
-        index = 0
-        for p in model.parameters():
-            if p.requires_grad:
-                n_param = p.numel()  # number of parameters in [p]
-                p.grad.copy_(new_grad[index:index + n_param].view_as(p))
-                index += n_param
+    def calculate_activations(self):
+        # Run model but ignore output, we only care about catching the activations through the capture_activation hook
+        clock_start = time.perf_counter()
+        # Sanity check
+        # Make sure at least y instances are predicted through RPN, otherwise number of samples passing through ROI heads will be 0
+        roi_activations = 0
+        min_activations = min(self.model.fmap.samples.values())
+        num_act_iterations = 0
+        while roi_activations < min_activations and num_act_iterations < 200:
+            print(f"{roi_activations}/{min_activations} activations found, continuing")
+            example_out = self.model(self.get_memory_batch())
+            for example_image_results in example_out:
+                roi_activations += len(example_image_results['instances'])
+        clock_end_inf = time.perf_counter()
+        print(f"Representation inference time: {clock_end_inf - clock_start}")

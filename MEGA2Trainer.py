@@ -15,7 +15,7 @@ class MEGA2Trainer(MemoryTrainer):
         # Calculate current gradients
         self.optimizer.zero_grad()
 
-        data = next(self._data_loader_iter)
+        data = self.get_current_batch()
         data_time = time.perf_counter() - start
 
         loss_dict = self.model(data)
@@ -27,7 +27,7 @@ class MEGA2Trainer(MemoryTrainer):
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
-        memory_data = next(self._memory_loader_iter)
+        memory_data = self.get_memory_batch()
         memory_loss_dict = self.model(memory_data)
         self.memory_loss = sum(memory_loss_dict.values())
         self.memory_loss.backward()

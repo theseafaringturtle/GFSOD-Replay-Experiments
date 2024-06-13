@@ -1,4 +1,6 @@
 # It's from https://github.com/cocodataset/panopticapi/blob/master/panoptic_coco_categories.json
+from detectron2.data import MetadataCatalog
+
 COCO_CATEGORIES = [
     {"color": [220, 20, 60], "isthing": 1, "id": 1, "name": "person"},
     {"color": [119, 11, 32], "isthing": 1, "id": 2, "name": "bicycle"},
@@ -12,7 +14,7 @@ COCO_CATEGORIES = [
     {"color": [250, 170, 30], "isthing": 1, "id": 10, "name": "traffic light"},
     {"color": [100, 170, 30], "isthing": 1, "id": 11, "name": "fire hydrant"},
     {"color": [220, 220, 0], "isthing": 1, "id": 13, "name": "stop sign"},
-    {"color": [175, 116, 175], "isthing": 1, "id": 14, "name": "parking meter",},
+    {"color": [175, 116, 175], "isthing": 1, "id": 14, "name": "parking meter", },
     {"color": [250, 0, 30], "isthing": 1, "id": 15, "name": "bench"},
     {"color": [165, 42, 42], "isthing": 1, "id": 16, "name": "bird"},
     {"color": [255, 77, 255], "isthing": 1, "id": 17, "name": "cat"},
@@ -38,7 +40,7 @@ COCO_CATEGORIES = [
     {"color": [45, 89, 255], "isthing": 1, "id": 40, "name": "baseball glove"},
     {"color": [134, 134, 103], "isthing": 1, "id": 41, "name": "skateboard"},
     {"color": [145, 148, 174], "isthing": 1, "id": 42, "name": "surfboard"},
-    {"color": [255, 208, 186], "isthing": 1, "id": 43, "name": "tennis racket",},
+    {"color": [255, 208, 186], "isthing": 1, "id": 43, "name": "tennis racket", },
     {"color": [197, 226, 255], "isthing": 1, "id": 44, "name": "bottle"},
     {"color": [171, 134, 1], "isthing": 1, "id": 46, "name": "wine glass"},
     {"color": [109, 63, 54], "isthing": 1, "id": 47, "name": "cup"},
@@ -165,17 +167,17 @@ PASCAL_VOC_ALL_CATEGORIES = {
         "cat", "chair", "diningtable", "dog", "horse",
         "person", "pottedplant", "sheep", "train", "tvmonitor",
         "bird", "bus", "cow", "motorbike", "sofa",
-    ],
+        ],
     2: ["bicycle", "bird", "boat", "bus", "car",
         "cat", "chair", "diningtable", "dog", "motorbike",
         "person", "pottedplant", "sheep", "train", "tvmonitor",
         "aeroplane", "bottle", "cow", "horse", "sofa",
-    ],
+        ],
     3: ["aeroplane", "bicycle", "bird", "bottle", "bus",
         "car", "chair", "cow", "diningtable", "dog",
         "horse", "person", "pottedplant", "train", "tvmonitor",
         "boat", "cat", "motorbike", "sheep", "sofa",
-    ],
+        ],
 }
 
 PASCAL_VOC_NOVEL_CATEGORIES = {
@@ -188,15 +190,15 @@ PASCAL_VOC_BASE_CATEGORIES = {
     1: ["aeroplane", "bicycle", "boat", "bottle", "car",
         "cat", "chair", "diningtable", "dog", "horse",
         "person", "pottedplant", "sheep", "train", "tvmonitor",
-    ],
+        ],
     2: ["bicycle", "bird", "boat", "bus", "car",
         "cat", "chair", "diningtable", "dog", "motorbike",
         "person", "pottedplant", "sheep", "train", "tvmonitor",
-    ],
+        ],
     3: ["aeroplane", "bicycle", "bird", "bottle", "bus",
         "car", "chair", "cow", "diningtable", "dog",
         "horse", "person", "pottedplant", "train", "tvmonitor",
-    ],
+        ],
 }
 
 
@@ -252,3 +254,31 @@ def _get_builtin_metadata(dataset_name):
     elif dataset_name == "voc_fewshot":
         return _get_voc_fewshot_instances_meta()
     raise KeyError("No built-in metadata for dataset {}".format(dataset_name))
+
+
+# G-FSOD changes due to the need to keep full class head but make use of reduced base/novel datasets
+# Unfortunately, number of classes and class head index were very much tied together in the existing code
+
+def voc_contiguous_id_to_class_id(dataset_name: str, id: int):
+    """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, VOC dataset"""
+    # Taking advantage of the fact VOC's novel categories are always at the end of PASCAL_VOC_ALL_CATEGORIES
+    if id < len(PASCAL_VOC_BASE_CATEGORIES):
+        return id
+    else:
+        return id + len(PASCAL_VOC_BASE_CATEGORIES)
+
+
+# Cache inverted contiguous ID to class ID mappings
+coco_contiguous_class_mappings = {}
+
+
+def coco_contiguous_id_to_class_id(dataset_name: str, id: int):
+    """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, COCO dataset"""
+    # COCO already uses a class ID to contiguous ID mapping, invert it
+    if dataset_name not in coco_contiguous_class_mappings:
+        contiguous_id_to_coco_id = {v: k for k, v in MetadataCatalog.get(dataset_name).get(
+            'thing_dataset_id_to_contiguous_id').items()}
+        coco_contiguous_class_mappings[dataset_name] = contiguous_id_to_coco_id
+    else:
+        contiguous_id_to_coco_id = coco_contiguous_class_mappings[dataset_name]
+    return contiguous_id_to_coco_id[id]

@@ -15,7 +15,7 @@ class CFATrainer(MemoryTrainer):
         # Calculate current gradients
         self.optimizer.zero_grad()
 
-        data = next(self._data_loader_iter)
+        data = self.get_current_batch()
         data_time = time.perf_counter() - start
 
         loss_dict = self.model(data)
@@ -27,8 +27,7 @@ class CFATrainer(MemoryTrainer):
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
-        memory_data = next(self._memory_loader_iter)
-        # TODO fix coco's base classes since they're not contiguous unlike VOC
+        memory_data = self.get_memory_batch()
         memory_loss_dict = self.model(memory_data)
         memory_losses = sum(memory_loss_dict.values())
         memory_losses.backward()
