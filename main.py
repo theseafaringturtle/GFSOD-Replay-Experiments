@@ -72,7 +72,7 @@ def main(args):
     # Use only novel data for novel gradient batch in memory-based methods.
     # Will require change to dataloader IDs and prototypes, give gfsod expects all classes
     if issubclass(TrainerClass, MemoryTrainer):
-        cfg.DATASETS.TRAIN = [f"{re.sub('all', 'novel', cfg.DATASETS.TRAIN[0])}"]
+        cfg.DATASETS.TRAIN = [f"{re.sub('all', 'novel_mem', cfg.DATASETS.TRAIN[0])}"]
 
     cfg.freeze()
     if args.eval_only:

@@ -49,18 +49,3 @@ class AGEMTrainer(MemoryTrainer):
 
         self.optimizer.step()
 
-
-    def get_gradient(self, model):
-        gradient = []
-        for p in model.parameters():
-            if p.requires_grad:
-                gradient.append(p.grad.view(-1))
-        return torch.cat(gradient)
-
-    def update_gradient(self, model, new_grad):
-        index = 0
-        for p in model.parameters():
-            if p.requires_grad:
-                n_param = p.numel()  # number of parameters in [p]
-                p.grad.copy_(new_grad[index:index + n_param].view_as(p))
-                index += n_param

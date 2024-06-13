@@ -79,9 +79,15 @@ def load_filtered_voc_instances(
                     bbox[0] -= 1.0
                     bbox[1] -= 1.0
 
+                    # If using a memory-based method, don't start from 0 as we'll later use the both novel and base classes separately for the same head
+                    if "novel_mem" in name:
+                        offset = 15
+                    else:
+                        offset = 0
+
                     instances = [
                         {
-                            "category_id": classnames.index(cls),
+                            "category_id": classnames.index(cls) + offset,
                             "bbox": bbox,
                             "bbox_mode": BoxMode.XYXY_ABS,
                         }

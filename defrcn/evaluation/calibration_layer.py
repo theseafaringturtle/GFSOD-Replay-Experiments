@@ -9,7 +9,6 @@ from detectron2.structures import ImageList
 from detectron2.modeling.poolers import ROIPooler
 from sklearn.metrics.pairwise import cosine_similarity
 
-from defrcn.data.builtin_meta import voc_contiguous_id_to_class_id, coco_contiguous_id_to_class_id
 from defrcn.dataloader import build_detection_test_loader
 from defrcn.evaluation.archs import resnet101
 
@@ -49,17 +48,6 @@ class PrototypicalCalibrationBlock:
         for index in range(len(self.dataloader.dataset)):
             inputs = [self.dataloader.dataset[index]]
             assert len(inputs) == 1
-            # Memory-based methods need different mapping for novel dataset since they use full class head
-            dataset_name = self.cfg.DATASETS.TRAIN[0]
-            if self.cfg.TRAINER != "DeFRCNTrainer":
-                if "voc" in dataset_name:
-                    inputs[0]['instances'].gt_classes = voc_contiguous_id_to_class_id(dataset_name,
-                                                                                      inputs[0]['instances'].gt_classes)
-                elif "coco" in dataset_name:
-                    inputs[0]['instances'].gt_classes = coco_contiguous_id_to_class_id(dataset_name, 
-                                                                                       inputs[0]['instances'].gt_classes)
-                else:
-                    raise NotImplementedError("For custom datasets, you need a function to map contiguous to class IDs")
             # load support images and gt-boxes
             img = cv2.imread(inputs[0]['file_name'])  # BGR
             img_h, img_w = img.shape[0], img.shape[1]

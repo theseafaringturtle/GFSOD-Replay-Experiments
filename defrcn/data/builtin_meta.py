@@ -221,10 +221,9 @@ def _get_coco_instances_meta():
     return ret
 
 
-def _get_coco_fewshot_instances_meta():
+def _get_coco_fewshot_instances_meta(dataset_name: str):
     ret = _get_coco_instances_meta()
-    novel_ids = [k["id"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1]
-    novel_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(novel_ids)}
+
     novel_classes = [
         k["name"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1
     ]
@@ -234,6 +233,12 @@ def _get_coco_fewshot_instances_meta():
     base_ids = [k["id"] for k in base_categories]
     base_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(base_ids)}
     base_classes = [k["name"] for k in base_categories]
+    # If we're using a memory-based method, we only pick novel class IDs, use them separately but don't start from 0 since we're using all classes for the head, otherwise they'll overlap
+    novel_ids = [k["id"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1]
+    if "novel_mem" in dataset_name:
+        novel_dataset_id_to_contiguous_id = {k: i+len(base_ids) for i, k in enumerate(novel_ids)}
+    else:
+        novel_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(novel_ids)}
     ret["novel_dataset_id_to_contiguous_id"] = novel_dataset_id_to_contiguous_id
     ret["novel_classes"] = novel_classes
     ret["base_dataset_id_to_contiguous_id"] = base_dataset_id_to_contiguous_id
@@ -254,39 +259,7 @@ def _get_builtin_metadata(dataset_name):
     if dataset_name == "coco":
         return _get_coco_instances_meta()
     elif dataset_name == "coco_fewshot":
-        return _get_coco_fewshot_instances_meta()
+        return _get_coco_fewshot_instances_meta(dataset_name)
     elif dataset_name == "voc_fewshot":
         return _get_voc_fewshot_instances_meta()
     raise KeyError("No built-in metadata for dataset {}".format(dataset_name))
-
-
-# G-FSOD changes due to the need to keep full class head but make use of reduced base/novel datasets
-# Unfortunately, number of classes and class head index were very much tied together in the existing code
-
-def voc_contiguous_id_to_class_id(dataset_name: str, id: Union[int, Tensor]):
-    """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, VOC dataset"""
-    # Taking advantage of the fact VOC's novel categories are always at the end of PASCAL_VOC_ALL_CATEGORIES
-    # No need to check if ID's a Tensor of IDs due to how addition operator is treated in pytorch
-    if "base" in dataset_name or "all" in dataset_name:
-        return id
-    else:
-        split_id = int(re.match(".*novel(.)", dataset_name).groups()[0])
-        return id + len(PASCAL_VOC_BASE_CATEGORIES[split_id])
-
-
-# Cache inverted contiguous ID to class ID mappings
-coco_contiguous_class_mappings = {}
-
-
-def coco_contiguous_id_to_class_id(dataset_name: str, id: Union[int, Tensor]):
-    """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, COCO dataset"""
-    # COCO already uses a class ID to contiguous ID mapping, invert it
-    if dataset_name not in coco_contiguous_class_mappings:
-        contiguous_id_to_coco_id = {v: k for k, v in MetadataCatalog.get(dataset_name).get(
-            'thing_dataset_id_to_contiguous_id').items()}
-        coco_contiguous_class_mappings[dataset_name] = contiguous_id_to_coco_id
-    else:
-        contiguous_id_to_coco_id = coco_contiguous_class_mappings[dataset_name]
-    if isinstance(id, Tensor):
-        return id.apply_(contiguous_id_to_coco_id.get)
-    return contiguous_id_to_coco_id[id]

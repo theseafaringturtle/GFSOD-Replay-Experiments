@@ -1,11 +1,9 @@
 import re
 
 import torch
-from detectron2.data import MetadataCatalog
 from torch import Tensor
 
 from DeFRCNTrainer import DeFRCNTrainer
-from defrcn.data.builtin_meta import coco_contiguous_id_to_class_id, voc_contiguous_id_to_class_id
 
 
 class MemoryTrainer(DeFRCNTrainer):
@@ -18,7 +16,7 @@ class MemoryTrainer(DeFRCNTrainer):
         name_and_shots, seed = train_set_name.split("_seed")
         # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
         # It's a quick way to make sure we're using different images for base memory, just like in CFA
-        new_train_set_name = f"{re.sub('novel|all', 'base', name_and_shots)}_seed{int(seed)}"
+        new_train_set_name = f"{re.sub('novel_mem|all', 'base', name_and_shots)}_seed{int(seed)}"
         memory_config.DATASETS.TRAIN = [new_train_set_name]
         print(f"Using {new_train_set_name} instead of {train_set_name} for memory")
         # Use same number of shots to be the same as k used in normal config, but different base images
@@ -31,29 +29,13 @@ class MemoryTrainer(DeFRCNTrainer):
 
     def get_memory_batch(self):
         memory_data = next(self._memory_loader_iter)
-        self.adjust_batch_ids(self.memory_config.DATASETS.TRAIN[0], memory_data)
+        # self.adjust_batch_ids(self.memory_config.DATASETS.TRAIN[0], memory_data)
         return memory_data
 
     def get_current_batch(self):
         current_data = next(self._data_loader_iter)
-        self.adjust_batch_ids(self.cfg.DATASETS.TRAIN[0], current_data)
+        # self.adjust_batch_ids(self.cfg.DATASETS.TRAIN[0], current_data)
         return current_data
-
-    def adjust_batch_ids(self, train_set_name, data):
-        # Adjust memory data IDs
-        # VOC does not need adjustment, since first 15 contiguous class IDs are the base ones
-        if "voc" in train_set_name:
-            for sample in data:
-                classes: Tensor = sample['instances'].get('gt_classes')  # CPU tensor containing class IDs for instances
-                sample['instances'].set('gt_classes', voc_contiguous_id_to_class_id(train_set_name, classes))
-            return data
-        elif "coco" in train_set_name:
-            for sample in data:
-                classes: Tensor = sample['instances'].get('gt_classes')  # ditto
-                sample['instances'].set('gt_classes', coco_contiguous_id_to_class_id(train_set_name, classes))
-            return data
-        else:
-            raise NotImplementedError("For custom datasets, specify here how a contiguous ID is mapped to a class ID")
 
     def get_gradient(self, model):
         gradient = []
