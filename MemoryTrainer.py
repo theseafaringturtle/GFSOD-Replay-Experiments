@@ -46,12 +46,12 @@ class MemoryTrainer(DeFRCNTrainer):
         if "voc" in train_set_name:
             for sample in data:
                 classes: Tensor = sample['instances'].get('gt_classes')  # CPU tensor containing class IDs for instances
-                sample['instances'].set('gt_classes', classes.apply_(voc_contiguous_id_to_class_id))
+                sample['instances'].set('gt_classes', voc_contiguous_id_to_class_id(train_set_name, classes))
             return data
         elif "coco" in train_set_name:
             for sample in data:
                 classes: Tensor = sample['instances'].get('gt_classes')  # ditto
-                sample['instances'].set('gt_classes', classes.apply_(coco_contiguous_id_to_class_id))
+                sample['instances'].set('gt_classes', coco_contiguous_id_to_class_id(train_set_name, classes))
         else:
             raise NotImplementedError("For custom datasets, specify here how a contiguous ID is mapped to a class ID")
 

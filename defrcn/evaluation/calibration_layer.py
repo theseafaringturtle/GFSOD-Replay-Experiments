@@ -50,11 +50,14 @@ class PrototypicalCalibrationBlock:
             inputs = [self.dataloader.dataset[index]]
             assert len(inputs) == 1
             # Memory-based methods need different mapping for novel dataset since they use full class head
+            dataset_name = self.cfg.DATASETS.TRAIN[0]
             if self.cfg.TRAINER != "DeFRCNTrainer":
-                if "voc" in self.cfg.DATASETS.TRAIN[0]:
-                    inputs[0]['instances'].gt_classes.apply_(voc_contiguous_id_to_class_id)
-                elif "coco" in self.cfg.DATASETS.TRAIN[0]:
-                    inputs[0]['instances'].gt_classes.apply_(coco_contiguous_id_to_class_id)
+                if "voc" in dataset_name:
+                    inputs[0]['instances'].gt_classes = voc_contiguous_id_to_class_id(dataset_name,
+                                                                                      inputs[0]['instances'].gt_classes)
+                elif "coco" in dataset_name:
+                    inputs[0]['instances'].gt_classes = coco_contiguous_id_to_class_id(dataset_name, 
+                                                                                       inputs[0]['instances'].gt_classes)
                 else:
                     raise NotImplementedError("For custom datasets, you need a function to map contiguous to class IDs")
             # load support images and gt-boxes

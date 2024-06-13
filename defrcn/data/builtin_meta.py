@@ -1,5 +1,8 @@
 # It's from https://github.com/cocodataset/panopticapi/blob/master/panoptic_coco_categories.json
+from typing import Union
+
 from detectron2.data import MetadataCatalog
+from torch import Tensor
 
 COCO_CATEGORIES = [
     {"color": [220, 20, 60], "isthing": 1, "id": 1, "name": "person"},
@@ -259,10 +262,11 @@ def _get_builtin_metadata(dataset_name):
 # G-FSOD changes due to the need to keep full class head but make use of reduced base/novel datasets
 # Unfortunately, number of classes and class head index were very much tied together in the existing code
 
-def voc_contiguous_id_to_class_id(dataset_name: str, id: int):
+def voc_contiguous_id_to_class_id(dataset_name: str, id: Union[int, Tensor]):
     """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, VOC dataset"""
     # Taking advantage of the fact VOC's novel categories are always at the end of PASCAL_VOC_ALL_CATEGORIES
-    if id < len(PASCAL_VOC_BASE_CATEGORIES):
+    # No need to check if ID's a Tensor of IDs due to how addition operator is treated in pytorch
+    if "base" in dataset_name or "all" in dataset_name:
         return id
     else:
         return id + len(PASCAL_VOC_BASE_CATEGORIES)
@@ -272,7 +276,7 @@ def voc_contiguous_id_to_class_id(dataset_name: str, id: int):
 coco_contiguous_class_mappings = {}
 
 
-def coco_contiguous_id_to_class_id(dataset_name: str, id: int):
+def coco_contiguous_id_to_class_id(dataset_name: str, id: Union[int, Tensor]):
     """Turn contiguous ID (used for training novel-only FSOD with smaller class head) back into class ID for full class head, COCO dataset"""
     # COCO already uses a class ID to contiguous ID mapping, invert it
     if dataset_name not in coco_contiguous_class_mappings:
@@ -281,4 +285,6 @@ def coco_contiguous_id_to_class_id(dataset_name: str, id: int):
         coco_contiguous_class_mappings[dataset_name] = contiguous_id_to_coco_id
     else:
         contiguous_id_to_coco_id = coco_contiguous_class_mappings[dataset_name]
+    if isinstance(id, Tensor):
+        return id.apply_(contiguous_id_to_coco_id.get)
     return contiguous_id_to_coco_id[id]
