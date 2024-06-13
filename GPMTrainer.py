@@ -48,15 +48,14 @@ def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
 class GPMTrainer(MemoryTrainer):
 
     def __init__(self, cfg):
+        # While it's the same code as memory methods,
+        # this is for getting the base samples to build initial representation matrix.
+        # Memory is not used in optimisation loop
         super().__init__(cfg)
 
     def resume_or_load(self, resume=True):
         # Load checkpoint
         super().resume_or_load(resume)
-
-        # While it's the same code as memory methods,
-        # this is for getting the base samples to build initial representation matrix.
-        # Memory is not used in optimisation loop
 
         self.device = torch.device(self.cfg.MODEL.DEVICE)
 
