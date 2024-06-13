@@ -31,16 +31,15 @@ class MemoryTrainer(DeFRCNTrainer):
 
     def get_memory_batch(self):
         memory_data = next(self._memory_loader_iter)
-        self.adjust_batch_ids(memory_data)
+        self.adjust_batch_ids(self.memory_config.DATASETS.TRAIN[0], memory_data)
         return memory_data
 
     def get_current_batch(self):
         current_data = next(self._data_loader_iter)
-        self.adjust_batch_ids(current_data)
+        self.adjust_batch_ids(self.cfg.DATASETS.TRAIN[0], current_data)
         return current_data
 
-    def adjust_batch_ids(self, data):
-        train_set_name = self.memory_config.DATASETS.TRAIN[0]
+    def adjust_batch_ids(self, train_set_name, data):
         # Adjust memory data IDs
         # VOC does not need adjustment, since first 15 contiguous class IDs are the base ones
         if "voc" in train_set_name:
@@ -52,6 +51,7 @@ class MemoryTrainer(DeFRCNTrainer):
             for sample in data:
                 classes: Tensor = sample['instances'].get('gt_classes')  # ditto
                 sample['instances'].set('gt_classes', coco_contiguous_id_to_class_id(train_set_name, classes))
+            return data
         else:
             raise NotImplementedError("For custom datasets, specify here how a contiguous ID is mapped to a class ID")
 

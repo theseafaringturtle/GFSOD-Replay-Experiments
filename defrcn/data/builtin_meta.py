@@ -2,6 +2,7 @@
 from typing import Union
 
 from detectron2.data import MetadataCatalog
+import re
 from torch import Tensor
 
 COCO_CATEGORIES = [
@@ -269,7 +270,8 @@ def voc_contiguous_id_to_class_id(dataset_name: str, id: Union[int, Tensor]):
     if "base" in dataset_name or "all" in dataset_name:
         return id
     else:
-        return id + len(PASCAL_VOC_BASE_CATEGORIES)
+        split_id = int(re.match(".*novel(.)", dataset_name).groups()[0])
+        return id + len(PASCAL_VOC_BASE_CATEGORIES[split_id])
 
 
 # Cache inverted contiguous ID to class ID mappings
