@@ -149,6 +149,7 @@ class FeatureMap(ABC):
 
 
 def get_representation_matrix(net) -> Dict[str, Tensor]:
+    clock_start_comp = time.perf_counter()
     # Get representation matrix (note: largest input size was used as baseline for convolutions in determine_conv_output_sizes)
     mats = dict()
     for layer_name in net.fmap.layer_names:
@@ -180,7 +181,7 @@ def get_representation_matrix(net) -> Dict[str, Tensor]:
             activation = act[0:bsz].transpose(1, 0)
             mats[layer_name] = activation
     clock_end_comp = time.perf_counter()
-    print(f"Representation matrix computation time: {clock_end_comp - clock_end_inf}")
+    print(f"Representation matrix computation time: {clock_end_comp - clock_start_comp}")
     print('-' * 30)
     print('Representation Matrix')
     print('-' * 30)
