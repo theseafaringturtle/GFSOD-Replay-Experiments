@@ -12,6 +12,7 @@ from DeFRCNTrainer import DeFRCNTrainer
 from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer
 from MemoryTrainer import MemoryTrainer
+from SimpleLossTrainer import SimpleLossTrainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
@@ -67,6 +68,8 @@ def main(args):
         TrainerClass = DeFRCNTrainer
     elif cfg.TRAINER == "GPMTrainer":
         TrainerClass = GPMTrainer
+    elif cfg.TRAINER == "SimpleLossTrainer":
+        TrainerClass = SimpleLossTrainer
     else:
         raise Exception(f"Unknown trainer: {cfg.TRAINER}")
     # Use only novel data for novel gradient batch in memory-based methods.
