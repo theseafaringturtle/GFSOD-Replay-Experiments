@@ -1,36 +1,67 @@
 import time
 import re
+from collections import OrderedDict
 from typing import Tuple
 
 import numpy as np
 import torch
 from detectron2.structures import Instances
-from detectron2.utils.comm import get_world_size
+from detectron2.utils.comm import get_world_size  # , get_rank, reduce_dict
 from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.hooks import RemovableHandle
-
+import torch.distributed as dist
 from DeFRCNTrainer import DeFRCNTrainer
 from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feature_map_hooks, \
     determine_conv_output_sizes
 from MemoryTrainer import MemoryTrainer
 
 
+def reduce_dict(input_dict, average=True):
+    """
+    Same as detectron's reduce_dict, but without stacking the values, which only worked for them in the loss use case
+    Returns:
+        a dict with the same keys as input_dict, after reduction.
+    """
+    world_size = get_world_size()
+    if world_size < 2:
+        return input_dict
+    with torch.no_grad():
+        names = []
+        values = []
+        # sort the keys so that they are consistent across processes
+        if isinstance(input_dict, OrderedDict):
+            for k in input_dict.keys():
+                names.append(k)
+                input_dict[k] = input_dict[k].cuda()
+                values.append(input_dict[k])
+        else:
+            for k in sorted(input_dict.keys()):
+                names.append(k)
+                input_dict[k] = input_dict[k].cuda()
+                values.append(input_dict[k])
+        # values = torch.stack(values, dim=0)
+        dist.barrier()
+        for i in range(len(values)):
+            print(names[i])
+            dist.all_reduce(values[i], op=dist.ReduceOp.AVG)
+        reduced_dict = {k: v for k, v in zip(names, values)}
+    return reduced_dict
+
+
 class FasterRCNNFeatureMap(FeatureMap):
     def __init__(self, multi_gpu=False, minibatch_size: int = 8):
         super().__init__()
-        # Detector layers only for now
-        # self.layer_names = ['backbone.res4.10.conv1', 'backbone.res4.10.conv2', 'backbone.res4.10.conv3',
-        #                     'backbone.res4.11.conv1', 'backbone.res4.11.conv2', 'backbone.res4.11.conv3',
-        #                     'backbone.res4.12.conv1', 'backbone.res4.12.conv2', 'backbone.res4.12.conv3']
-        self.layer_names = ['backbone.res4.0.conv1']
-
+        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(23)] + \
+                           [f'backbone.res4.{i}.conv2' for i in range(23)] + \
+                           [f'backbone.res4.{i}.conv3' for i in range(23)]
+        self.layer_names = sorted(self.layer_names)
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
             self.layer_names = ["module." + name for name in self.layer_names]
         self.samples = {name: minibatch_size for name in self.layer_names}
-        self.threshold = {name: 0.99 for name in self.layer_names}
-        self.threshold['proposal_generator.rpn_head.conv'] = 0.996
+        self.threshold = {name: (0.8 if not name.endswith('conv3') else 0.7) for name in self.layer_names}
+        # self.threshold['proposal_generator.rpn_head.conv'] = 0.6
 
 
 def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
@@ -48,8 +79,7 @@ def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
 class GPMTrainer(MemoryTrainer):
 
     def __init__(self, cfg):
-        # While it's the same code as memory methods,
-        # this is for getting the base samples to build initial representation matrix.
+        # While it's the same code as memory methods, this is for getting the base samples to build initial representation matrix.
         # Memory is not used in optimisation loop
         super().__init__(cfg)
 
@@ -86,6 +116,12 @@ class GPMTrainer(MemoryTrainer):
             Uf = torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)).to(self.device)
             print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
             self.feature_mat.append(Uf)
+        # Average gradients across GPUs
+        if get_world_size() > 0:
+            for i in range(len(self.feature_mat)):
+                tensor = self.feature_mat[i].clone()
+                dist.all_reduce(tensor, op=dist.ReduceOp.AVG)
+                self.feature_mat[i] = tensor
         self.model.train()
 
     def run_step(self):
