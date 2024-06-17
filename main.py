@@ -9,6 +9,7 @@ from detectron2.checkpoint import DetectionCheckpointer
 from AGEMTrainer import AGEMTrainer
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
+from EWCTrainer import EWCTrainer
 from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer
 from MemoryTrainer import MemoryTrainer
@@ -70,6 +71,8 @@ def main(args):
         TrainerClass = GPMTrainer
     elif cfg.TRAINER == "SimpleLossTrainer":
         TrainerClass = SimpleLossTrainer
+    elif cfg.TRAINER == "EWCTrainer":
+        TrainerClass = EWCTrainer
     else:
         raise Exception(f"Unknown trainer: {cfg.TRAINER}")
     # Use only novel data for novel gradient batch in memory-based methods.
