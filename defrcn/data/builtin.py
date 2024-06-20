@@ -24,7 +24,7 @@ def register_all_coco(root="datasets"):
     for name, imgdir, annofile in METASPLITS:
         register_meta_coco(
             name,
-            _get_builtin_metadata("coco_fewshot"),
+            _get_builtin_metadata("coco_fewshot", name),
             os.path.join(root, imgdir),
             os.path.join(root, annofile),
         )

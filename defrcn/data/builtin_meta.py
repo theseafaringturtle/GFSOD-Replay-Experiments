@@ -221,7 +221,7 @@ def _get_coco_instances_meta():
     return ret
 
 
-def _get_coco_fewshot_instances_meta(dataset_name: str):
+def _get_coco_fewshot_instances_meta(split_name: str):
     ret = _get_coco_instances_meta()
 
     novel_classes = [
@@ -235,7 +235,7 @@ def _get_coco_fewshot_instances_meta(dataset_name: str):
     base_classes = [k["name"] for k in base_categories]
     # If we're using a memory-based method, we only pick novel class IDs, use them separately but don't start from 0 since we're using all classes for the head, otherwise they'll overlap
     novel_ids = [k["id"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1]
-    if "novel_mem" in dataset_name:
+    if "novel_mem" in split_name:
         novel_dataset_id_to_contiguous_id = {k: i+len(base_ids) for i, k in enumerate(novel_ids)}
     else:
         novel_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(novel_ids)}
@@ -255,11 +255,11 @@ def _get_voc_fewshot_instances_meta():
     return ret
 
 
-def _get_builtin_metadata(dataset_name):
+def _get_builtin_metadata(dataset_name, split_name=""):
     if dataset_name == "coco":
         return _get_coco_instances_meta()
     elif dataset_name == "coco_fewshot":
-        return _get_coco_fewshot_instances_meta(dataset_name)
+        return _get_coco_fewshot_instances_meta(split_name)
     elif dataset_name == "voc_fewshot":
         return _get_voc_fewshot_instances_meta()
     raise KeyError("No built-in metadata for dataset {}".format(dataset_name))
