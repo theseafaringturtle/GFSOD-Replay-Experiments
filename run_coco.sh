@@ -43,7 +43,7 @@ if [[ $FSRW == true ]]
 then
 for repeat_id in 0
 do
-    for shot in 1 2 3 5 10 30
+    for shot in $SHOT_LIST
     do
         for seed in 0
         do
@@ -54,8 +54,10 @@ do
             python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                  \
                 --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}           \
                        TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-            rm ${CONFIG_PATH}
-            rm ${OUTPUT_DIR}/model_final.pth
+            if [[ $KEEP_OUTPUTS != true ]]; then
+              rm ${CONFIG_PATH}
+              rm ${OUTPUT_DIR}/model_final.pth
+            fi
         done
     done
 done
@@ -83,9 +85,9 @@ BASE_WEIGHT=${SAVEDIR}/defrcn_det_r101_base/model_reset_surgery.pth
 # --> 2. TFA-like, i.e. run seed0~9 for robust results (G-FSOD, 80 classes)
 if [[ $GFSOD == true ]]
 then
-for seed in 0 1 2 3 4 5 6 7 8 9
+for seed in $SEED_SPLIT_LIST
 do
-    for shot in 1 2 3 5 10 30
+    for shot in $SHOT_LIST
     do
         python3 tools/create_config.py --dataset coco14 --config_root configs/coco     \
             --shot ${shot} --seed ${seed} --setting 'gfsod'
@@ -94,8 +96,10 @@ do
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                      \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}               \
                    TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-        rm ${CONFIG_PATH}
-        rm ${OUTPUT_DIR}/model_final.pth
+        if [[ $KEEP_OUTPUTS != true ]]; then
+            rm ${CONFIG_PATH}
+            rm ${OUTPUT_DIR}/model_final.pth
+        fi
     done
 done
 python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_gfsod_r101_novel/tfa-like --shot-list 1 2 3 5 10 30  # surmarize all results
@@ -106,9 +110,9 @@ fi
 if [[ $FSOD_TFA == true ]]
 then
 BASE_WEIGHT=${SAVEDIR}/defrcn_det_r101_base/model_reset_remove.pth
-for seed in 0 1 2 3 4 5 6 7 8 9
+for seed in $SEED_SPLIT_LIST
 do
-    for shot in 1 2 3 5 10 30
+    for shot in $SHOT_LIST
     do
         python3 tools/create_config.py --dataset coco14 --config_root configs/coco     \
             --shot ${shot} --seed ${seed} --setting 'fsod'
@@ -117,8 +121,10 @@ do
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                      \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}               \
                    TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-        rm ${CONFIG_PATH}
-        rm ${OUTPUT_DIR}/model_final.pth
+        if [[ $KEEP_OUTPUTS != true ]]; then
+            rm ${CONFIG_PATH}
+            rm ${OUTPUT_DIR}/model_final.pth
+        fi
     done
 done
 python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_fsod_r101_novel/tfa-like --shot-list 1 2 3 5 10 30  # surmarize all results

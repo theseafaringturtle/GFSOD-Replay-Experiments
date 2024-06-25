@@ -35,7 +35,7 @@ if [[ $FSRW == true ]]
 then
 for repeat_id in 0
 do
-    for shot in 1 2 3 5 10   # if final, 10 -> 1 2 3 5 10
+    for shot in $SHOT_LIST
     do
         for seed in 0
         do
@@ -46,8 +46,11 @@ do
             python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                          \
                 --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                   \
                        TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-            rm ${CONFIG_PATH}
-            rm ${OUTPUT_DIR}/model_final.pth
+            # Whether you want to keep model checkpoint saved at the end of training
+            if [[ $KEEP_OUTPUTS != true ]]; then
+              rm ${CONFIG_PATH}
+              rm ${OUTPUT_DIR}/model_final.pth
+            fi
         done
     done
 done
@@ -76,9 +79,9 @@ BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
 # --> 2. TFA-like, i.e. run seed0~9 for robust results (G-FSOD, 80 classes)
 if [[ $GFSOD == true ]]
 then
-for seed in 0 1 2 3 4 5 6 7 8 9
+for seed in $SEED_SPLIT_LIST
 do
-    for shot in 1 2 3 5 10   # if final, 10 -> 1 2 3 5 10
+    for shot in $SHOT_LIST
     do
         python3 tools/create_config.py --dataset voc --config_root configs/voc               \
             --shot ${shot} --seed ${seed} --setting 'gfsod' --split ${SPLIT_ID}
@@ -87,8 +90,10 @@ do
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                            \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                     \
                    TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-        rm ${CONFIG_PATH}
-        rm ${OUTPUT_DIR}/model_final.pth
+        if [[ $KEEP_OUTPUTS != true ]]; then
+            rm ${CONFIG_PATH}
+            rm ${OUTPUT_DIR}/model_final.pth
+        fi
     done
 done
 python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_gfsod_r101_novel${SPLIT_ID}/tfa-like --shot-list 1 2 3 5 10  # summarize all results
@@ -99,9 +104,9 @@ fi
 if [[ $FSOD_TFA == true ]]
 then
 BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_remove.pth
-for seed in 0 1 2 3 4 5 6 7 8 9
+for seed in $SEED_SPLIT_LIST
 do
-    for shot in 1 2 3 5 10   # if final, 10 -> 1 2 3 5 10
+    for shot in $SHOT_LIST
     do
         python3 tools/create_config.py --dataset voc --config_root configs/voc                \
             --shot ${shot} --seed ${seed} --setting 'fsod' --split ${SPLIT_ID}
@@ -110,8 +115,10 @@ do
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                             \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}                      \
                    TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-        rm ${CONFIG_PATH}
-        rm ${OUTPUT_DIR}/model_final.pth
+        if [[ $KEEP_OUTPUTS != true ]]; then
+            rm ${CONFIG_PATH}
+            rm ${OUTPUT_DIR}/model_final.pth
+        fi
     done
 done
 python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_fsod_r101_novel${SPLIT_ID}/tfa-like --shot-list 1 2 3 5 10  # summarize all results
