@@ -125,7 +125,7 @@ class GPMTrainer(MemoryTrainer):
         self.model.train()
 
     def run_step(self):
-        assert self.model.training, "[CFATrainer] model was changed to eval mode!"
+        assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
         start = time.perf_counter()
 
         # Calculate current gradients
