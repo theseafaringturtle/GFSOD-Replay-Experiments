@@ -4,7 +4,6 @@ import torch
 
 from DeFRCNTrainer import DeFRCNTrainer
 from MemoryTrainer import MemoryTrainer
-from batchnorm import convert_frozenbatchnorm2d_to_syncbatchnorm
 
 
 class CFATrainer(MemoryTrainer):
@@ -52,11 +51,6 @@ class CFATrainer(MemoryTrainer):
 
         self._write_metrics(loss_dict, data_time)
 
-        """
-        If you need gradient clipping/scaling or other processing, you can
-        wrap the optimizer with your custom `step()` method. But it is
-        suboptimal as explained in https://arxiv.org/abs/2006.15704 Sec 3.2.4
-        """
         self.optimizer.step()
 
     def vec_angle(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
