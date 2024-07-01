@@ -7,6 +7,8 @@ from detectron2.engine import launch
 from detectron2.checkpoint import DetectionCheckpointer
 
 from AGEMTrainer import AGEMTrainer
+from AlterTrainer import AlterTrainer
+from CFALTrainer import CFALTrainer
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
 from EWCTrainer import EWCTrainer
@@ -61,6 +63,10 @@ def main(args):
     cfg.defrost()
     if cfg.TRAINER == "CFATrainer":
         TrainerClass = CFATrainer
+    elif cfg.TRAINER == "CFALTrainer":
+        TrainerClass = CFALTrainer
+    elif cfg.TRAINER == "AlterTrainer":
+        TrainerClass = AlterTrainer
     elif cfg.TRAINER == "AGEMTrainer":
         TrainerClass = AGEMTrainer
     elif cfg.TRAINER == "MEGA2Trainer":
