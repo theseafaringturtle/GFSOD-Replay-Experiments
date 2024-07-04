@@ -1,3 +1,4 @@
+import logging
 import time
 from abc import ABC
 from collections import OrderedDict
@@ -6,9 +7,11 @@ from typing import Dict, Tuple
 
 import numpy as np
 import torch
+from detectron2.utils.comm import get_rank
 from torch import nn, Tensor
 from torch.utils.hooks import RemovableHandle
-from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 # Note: res3 layers are always frozen
 backbone_layers = ['backbone.res4.0.shortcut',
@@ -149,6 +152,7 @@ class FeatureMap(ABC):
 
 
 def get_representation_matrix(net) -> Dict[str, Tensor]:
+    logger.info(f"Computing representation matrix")
     clock_start_comp = time.perf_counter()
     # Get representation matrix (note: largest input size was used as baseline for convolutions in determine_conv_output_sizes)
     mats = dict()
@@ -181,18 +185,11 @@ def get_representation_matrix(net) -> Dict[str, Tensor]:
             activation = act[0:bsz].transpose(1, 0)
             mats[layer_name] = activation
     clock_end_comp = time.perf_counter()
-    print(f"Representation matrix computation time: {clock_end_comp - clock_start_comp}")
-    print('-' * 30)
-    print('Representation Matrix')
-    print('-' * 30)
-    for layer_name in mats.keys():
-        print('Layer {} : {}'.format(layer_name, mats[layer_name].shape))
-    print('-' * 30)
+    logger.debug(f"Representation matrix computation time: {clock_end_comp - clock_start_comp}")
     return mats
 
 
 def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    print('Threshold: ', threshold)
     if not features:
         # After First Task
         clock_start = time.perf_counter()
@@ -206,9 +203,10 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
             features[layer_name] = U[:, 0:r]
 
             clock_end = time.perf_counter()
-            print(f"SVD time for {layer_name}: {clock_end - clock_start}")
+            if get_rank() == 0:  # Don't print for every GPU process
+                logger.debug(f"SVD time for {layer_name}: {clock_end - clock_start}")
             clock_start = clock_end
-    else:
+    else: # Not currently in use, given G-FSOD setting
         for layer_name in mat_dict.keys():
             activation = mat_dict[layer_name]
             U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
@@ -230,7 +228,7 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
                 else:
                     break
             if r == 0:
-                print('Skip Updating GPM for layer: {}'.format(layer_name))
+                logger.debug('Skip Updating GPM for layer: {}'.format(layer_name))
                 continue
             # update GPM
             Ui = torch.hstack((features[layer_name], U[:, 0:r]))
@@ -239,10 +237,11 @@ def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[
             else:
                 features[layer_name] = Ui
 
-    print('-' * 40)
-    print('Gradient Constraints Summary')
-    print('-' * 40)
-    for layer_name in features:
-        print('Layer {} : {}/{}'.format(layer_name, features[layer_name].shape[1], features[layer_name].shape[0]))
-    print('-' * 40)
+    if get_rank() == 0: # Don't print for every GPU process
+        logger.debug('-' * 40)
+        logger.debug('Gradient Constraints Summary')
+        logger.debug('-' * 40)
+        for layer_name in features:
+            logger.debug('Layer {} : {}/{}'.format(layer_name, features[layer_name].shape[1], features[layer_name].shape[0]))
+        logger.debug('-' * 40)
     return features
