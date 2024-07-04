@@ -17,10 +17,12 @@ export PROVIDED_RANDINIT=true
 
 # Not recommended if you cannot spare a few hundred MB model for each seed and shot. Best tweak SHOT_LIST or SEED_SPLIT_LIST if using this
 export KEEP_OUTPUTS=false
-# if final, 10 -> 1 2 3 5 10
-export SHOT_LIST="1 2 3 5 10"
-# TFA-derived data splits
-export SEED_SPLIT_LIST="0 1 2 3 4 5 6 7 8 9"
+# if final, 1 2 3 5 10
+export SHOT_LIST=(1 2 3 5 10)
+# TFA-derived data splits for few-shot data
+export DATA_SPLIT_LIST=(0 1 2 3 4 5 6 7 8 9)
+# RNG seed to run the experiments with.
+export RNG_SEED=0 # (1 2 3)
 
 export GFSOD=true
 

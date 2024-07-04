@@ -8,7 +8,7 @@ echo "Saving results to "$COCO_BASE_SAVE_DIR
 
 SAVEDIR=$COCO_BASE_SAVE_DIR/${EXPNAME}
 
-# ------------------------------- Base Pre-train ---------------------------------- #
+# ------------------------------- Base Pre-training, 60 classes ---------------------------------- #
 if [[ $FINETUNE != true ]]
 then
     echo "Performing base pretraining"
@@ -22,47 +22,6 @@ else
 fi
 
 # ----------------------------- Model Preparation --------------------------------- #
-if [[ $PROVIDED_RANDINIT == true ]]
-then
-  # If you want to use same random initialisation for last layers as initial experiment
-  if [[ $FINETUNE != true ]]; then echo "FINETUNE is not true, are you sure you want to use the pretrained surgery model?"; fi
-  echo "Using provided model_reset_surgery"
-  mkdir -p ${SAVEDIR}/defrcn_det_r101_base
-  cp ./model_base_coco/model_reset_surgery.pth ${SAVEDIR}/defrcn_det_r101_base/model_reset_surgery.pth
-else
-  python3 tools/model_surgery.py --dataset coco --method remove                         \
-    --src-path ${SAVEDIR}/defrcn_det_r101_base/model_final.pth                        \
-    --save-dir ${SAVEDIR}/defrcn_det_r101_base
-fi
-BASE_WEIGHT=${SAVEDIR}/defrcn_det_r101_base/model_reset_remove.pth
-
-
-# ------------------------------ Novel Fine-tuning -------------------------------- #
-# --> 1. FSRW-like, using seed0 aka default files from TFA. Only one repeat since this is now deterministic across runs.
-if [[ $FSRW == true ]]
-then
-for repeat_id in 0
-do
-    for shot in $SHOT_LIST
-    do
-        for seed in 0
-        do
-            python3 tools/create_config.py --dataset coco14 --config_root configs/coco \
-                --shot ${shot} --seed ${seed} --setting 'fsod'
-            CONFIG_PATH=configs/coco/defrcn_fsod_r101_novel_${shot}shot_seed${seed}.yaml
-            OUTPUT_DIR=${SAVEDIR}/defrcn_fsod_r101_novel/fsrw-like/${shot}shot_seed${seed}_repeat${repeat_id}
-            python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                  \
-                --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}           \
-                       TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-            if [[ $KEEP_OUTPUTS != true ]]; then
-              rm ${CONFIG_PATH}
-              rm ${OUTPUT_DIR}/model_final.pth
-            fi
-        done
-    done
-done
-python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_fsod_r101_novel/fsrw-like --shot-list 1 2 3 5 10 30  # summarize all results
-fi
 
 if [[ $PROVIDED_RANDINIT == true ]]
 then
@@ -81,13 +40,13 @@ fi
 BASE_WEIGHT=${SAVEDIR}/defrcn_det_r101_base/model_reset_surgery.pth
 
 
-# ------------------------------ Novel Fine-tuning ------------------------------- #
-# --> 2. TFA-like, i.e. run seed0~9 for robust results (G-FSOD, 80 classes)
+# ------------------------------ GFSOD Fine-tuning, 60+20 classes ------------------------------- #
+# Run model over TFA-derived data splits (0-9). For more robust results, run with more than one seed for the RNG
 if [[ $GFSOD == true ]]
 then
-for seed in $SEED_SPLIT_LIST
+for seed in "${DATA_SPLIT_LIST[@]}"
 do
-    for shot in $SHOT_LIST
+    for shot in "${SHOT_LIST[@]}"
     do
         python3 tools/create_config.py --dataset coco14 --config_root configs/coco     \
             --shot ${shot} --seed ${seed} --setting 'gfsod'
@@ -95,38 +54,12 @@ do
         OUTPUT_DIR=${SAVEDIR}/defrcn_gfsod_r101_novel/tfa-like/${shot}shot_seed${seed}
         python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                      \
             --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}               \
-                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
+                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED $RNG_SEED TRAINER $TRAINER
         if [[ $KEEP_OUTPUTS != true ]]; then
             rm ${CONFIG_PATH}
             rm ${OUTPUT_DIR}/model_final.pth
         fi
     done
 done
-python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_gfsod_r101_novel/tfa-like --shot-list 1 2 3 5 10 30  # surmarize all results
+python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_gfsod_r101_novel/tfa-like --shot-list "${SHOT_LIST[@]}"  # summarize all results
 fi
-
-# ------------------------------ Novel Fine-tuning ------------------------------- #  not necessary, just for the completeness of defrcn
-# --> 3. TFA-like, i.e. run seed0~9 for robust results
-if [[ $FSOD_TFA == true ]]
-then
-BASE_WEIGHT=${SAVEDIR}/defrcn_det_r101_base/model_reset_remove.pth
-for seed in $SEED_SPLIT_LIST
-do
-    for shot in $SHOT_LIST
-    do
-        python3 tools/create_config.py --dataset coco14 --config_root configs/coco     \
-            --shot ${shot} --seed ${seed} --setting 'fsod'
-        CONFIG_PATH=configs/coco/defrcn_fsod_r101_novel_${shot}shot_seed${seed}.yaml
-        OUTPUT_DIR=${SAVEDIR}/defrcn_fsod_r101_novel/tfa-like/${shot}shot_seed${seed}
-        python3 main.py --num-gpus $NUM_GPUS --config-file ${CONFIG_PATH}                      \
-            --opts MODEL.WEIGHTS ${BASE_WEIGHT} OUTPUT_DIR ${OUTPUT_DIR}               \
-                   TEST.PCB_MODELPATH ${IMAGENET_PRETRAIN_TORCH} SEED ${seed} TRAINER $TRAINER
-        if [[ $KEEP_OUTPUTS != true ]]; then
-            rm ${CONFIG_PATH}
-            rm ${OUTPUT_DIR}/model_final.pth
-        fi
-    done
-done
-python3 tools/extract_results.py --res-dir ${SAVEDIR}/defrcn_fsod_r101_novel/tfa-like --shot-list 1 2 3 5 10 30  # surmarize all results
-fi
-echo "End"
