@@ -100,17 +100,18 @@ class GPMTrainer(MemoryTrainer):
 
     def cache_proj_matrix(self, features, save_name: str):
         os.makedirs("./gpm_features/", exist_ok=True)
-        file_name = f"./gpm_features/{save_name}.pickle"
+        file_name = f"./gpm_features/{save_name}_gpm.pickle"
         if os.path.exists(file_name):
             logger.info("Overwriting " + file_name)
-        with open(save_name, "wb") as f:
+        with open(file_name, "wb") as f:
             pickle.dump(features, f)
         logger.info(f"File {file_name} saved")
 
     def get_cached_proj_matrix(self, save_name: str) -> [torch.Tensor]:
-        file_name = f"./gpm_features/{save_name}.pickle"
+        file_name = f"./gpm_features/{save_name}_gpm.pickle"
         with open(file_name, "rb") as f:
             features = pickle.load(f)
+            logger.info(f"Cached GPM at {file_name} loaded")
         return features
 
     def resume_or_load(self, resume=True):
@@ -129,7 +130,11 @@ class GPMTrainer(MemoryTrainer):
         gpm_cache_loaded = False
         if USE_GPM_CACHE:
             try:
+                # Load cached data
                 self.feature_mat = self.get_cached_proj_matrix(get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
+                # Move it to the GPU associated with this process
+                for i in range(len(self.feature_mat)):
+                    self.feature_mat[i] = self.feature_mat[i].to(self.device)
                 gpm_cache_loaded = True
             except FileNotFoundError:
                 logger.error("GPM cache not found, calculating from scratch")
@@ -163,7 +168,7 @@ class GPMTrainer(MemoryTrainer):
                     dist.all_reduce(tensor, op=dist.ReduceOp.AVG)
                     self.feature_mat[i] = tensor
             # If on main process, cache the projection matrix
-            if USE_GPM_CACHE and get_rank() == 0:
+            if get_rank() == 0:
                 self.cache_proj_matrix(self.feature_mat, get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
             self.model.train()
 

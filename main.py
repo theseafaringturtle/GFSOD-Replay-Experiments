@@ -85,6 +85,9 @@ def main(args):
     # Will require change to dataloader IDs and prototypes, give gfsod expects all classes
     if issubclass(TrainerClass, MemoryTrainer):
         cfg.DATASETS.TRAIN = [f"{re.sub('all', 'novel_mem', cfg.DATASETS.TRAIN[0])}"]
+    # Don't recompute most significant weights for every experiment, save them for each base dataset
+    if issubclass(TrainerClass, GPMTrainer):
+        cfg.GPM_CACHE = True
 
     cfg.freeze()
     if args.eval_only:
