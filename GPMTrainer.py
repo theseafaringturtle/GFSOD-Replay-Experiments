@@ -1,3 +1,6 @@
+import logging
+import os.path
+import pickle
 import time
 import re
 from collections import OrderedDict
@@ -6,7 +9,8 @@ from typing import Tuple
 import numpy as np
 import torch
 from detectron2.structures import Instances
-from detectron2.utils.comm import get_world_size  # , get_rank, reduce_dict
+from detectron2.utils.comm import get_world_size, get_rank  # , get_rank, reduce_dict
+from iopath import PathManager
 from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.hooks import RemovableHandle
@@ -15,6 +19,8 @@ from DeFRCNTrainer import DeFRCNTrainer
 from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feature_map_hooks, \
     determine_conv_output_sizes
 from MemoryTrainer import MemoryTrainer
+
+logger = logging.getLogger(__name__)
 
 
 def reduce_dict(input_dict, average=True):
@@ -52,9 +58,9 @@ def reduce_dict(input_dict, average=True):
 class FasterRCNNFeatureMap(FeatureMap):
     def __init__(self, multi_gpu=False, minibatch_size: int = 8):
         super().__init__()
-        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(23)] + \
-                           [f'backbone.res4.{i}.conv2' for i in range(23)] + \
-                           [f'backbone.res4.{i}.conv3' for i in range(23)]
+        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(1)] + \
+                           [f'backbone.res4.{i}.conv2' for i in range(1)] + \
+                           [f'backbone.res4.{i}.conv3' for i in range(1)]
         self.layer_names = sorted(self.layer_names)
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
@@ -76,12 +82,35 @@ def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
     return sample
 
 
+def get_base_ds_name(train_set_name: str):
+    """ Get base name of dataset, used for caching features across experiments
+        Assuming the usual format for TFA and later experiments: basename_(novel/base/all)_kshot_seedx"""
+    match = re.match('.*(_novel|_base|_all)', train_set_name)
+    if not match:
+        raise Exception("GPM: Could not get base dataset name for " + train_set_name)
+    return train_set_name[:train_set_name.index(match.groups()[0])]
+
+
 class GPMTrainer(MemoryTrainer):
 
     def __init__(self, cfg):
         # While it's the same code as memory methods, this is for getting the base samples to build initial representation matrix.
         # Memory is not used in optimisation loop
         super().__init__(cfg)
+
+    def cache_proj_matrix(self, features, save_name: str):
+        os.makedirs("./gpm_features/", exist_ok=True)
+        file_name = f"./gpm_features/{save_name}.pickle"
+        if os.path.exists(file_name):
+            logger.info("Overwriting " + file_name)
+        with open(save_name, "wb") as f:
+            pickle.dump(features, f)
+        logger.info(f"File {file_name} saved")
+
+    def get_cached_proj_matrix(self, save_name: str) -> [torch.Tensor]:
+        with open(save_name, "rb") as f:
+            features = pickle.load(f)
+        return features
 
     def resume_or_load(self, resume=True):
         # Load checkpoint
@@ -94,35 +123,43 @@ class GPMTrainer(MemoryTrainer):
             self.cfg.SOLVER.IMS_PER_BATCH // get_world_size()
         )
 
-        hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
+        USE_GPM_CACHE = hasattr(self.cfg, 'GPM_CACHE') and self.cfg.GPM_CACHE
 
-        # Create random data according to detectron2 format
-        random_samples: [dict] = [create_random_sample((3, 1300, 800))]
+        if USE_GPM_CACHE:
+            self.feature_mat = self.get_cached_proj_matrix(get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
+        else:
+            hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
 
-        # next(self._memory_loader_iter)
-        # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
-        determine_conv_output_sizes(self.model, random_samples)
-        self.model.fmap.clear_activations()
-        self.calculate_activations()
-        mat_dict = get_representation_matrix(self.model)
-        features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
+            # Create random data according to detectron2 format
+            random_samples: [dict] = [create_random_sample((3, 1300, 800))]
 
-        for hook_handle in hooks:
-            hook_handle.remove()
+            # next(self._memory_loader_iter)
+            # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
+            determine_conv_output_sizes(self.model, random_samples)
+            self.model.fmap.clear_activations()
+            self.calculate_activations()
+            mat_dict = get_representation_matrix(self.model)
+            features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
 
-        self.feature_mat = []
-        # Projection Matrix Precomputation
-        for layer_name in self.model.fmap.layer_names:
-            Uf = torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)).to(self.device)
-            print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
-            self.feature_mat.append(Uf)
-        # Average gradients across GPUs
-        if get_world_size() > 0:
-            for i in range(len(self.feature_mat)):
-                tensor = self.feature_mat[i].clone()
-                dist.all_reduce(tensor, op=dist.ReduceOp.AVG)
-                self.feature_mat[i] = tensor
-        self.model.train()
+            for hook_handle in hooks:
+                hook_handle.remove()
+
+            self.feature_mat = []
+            # Projection Matrix Precomputation
+            for layer_name in self.model.fmap.layer_names:
+                Uf = torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)).to(self.device)
+                print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
+                self.feature_mat.append(Uf)
+            # Average gradients across GPUs, reduce variance between samples of different mini-batches
+            if get_world_size() > 1:
+                for i in range(len(self.feature_mat)):
+                    tensor = self.feature_mat[i].clone()
+                    dist.all_reduce(tensor, op=dist.ReduceOp.AVG)
+                    self.feature_mat[i] = tensor
+            # If on main process, cache the projection matrix
+            if USE_GPM_CACHE and get_rank() == 0:
+                self.cache_proj_matrix(self.feature_mat, get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
+            self.model.train()
 
     def run_step(self):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
