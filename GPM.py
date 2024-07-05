@@ -11,7 +11,7 @@ from detectron2.utils.comm import get_rank
 from torch import nn, Tensor
 from torch.utils.hooks import RemovableHandle
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("defrcn").getChild(__name__)
 
 # Note: res3 layers are always frozen
 backbone_layers = ['backbone.res4.0.shortcut',

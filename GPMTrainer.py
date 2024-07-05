@@ -20,7 +20,7 @@ from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feat
     determine_conv_output_sizes
 from MemoryTrainer import MemoryTrainer
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("defrcn").getChild(__name__)
 
 
 def reduce_dict(input_dict, average=True):
@@ -49,7 +49,7 @@ def reduce_dict(input_dict, average=True):
         # values = torch.stack(values, dim=0)
         dist.barrier()
         for i in range(len(values)):
-            print(names[i])
+            # print(names[i])
             dist.all_reduce(values[i], op=dist.ReduceOp.AVG)
         reduced_dict = {k: v for k, v in zip(names, values)}
     return reduced_dict
@@ -159,7 +159,7 @@ class GPMTrainer(MemoryTrainer):
             # Projection Matrix Precomputation
             for layer_name in self.model.fmap.layer_names:
                 Uf = torch.matmul(features[layer_name], features[layer_name].transpose(1, 0)).to(self.device)
-                print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
+                # print('Layer {} - Projection Matrix shape: {}'.format(layer_name, Uf.shape))
                 self.feature_mat.append(Uf)
             # Average gradients across GPUs, reduce variance between samples of different mini-batches
             if get_world_size() > 1:
@@ -221,9 +221,9 @@ class GPMTrainer(MemoryTrainer):
         min_activations = min(self.model.fmap.samples.values())
         num_act_iterations = 0
         while roi_activations < min_activations and num_act_iterations < 200:
-            print(f"{roi_activations}/{min_activations} activations found, continuing")
+            logger.debug(f"{roi_activations}/{min_activations} activations found, continuing")
             example_out = self.model(self.get_memory_batch())
             for example_image_results in example_out:
                 roi_activations += len(example_image_results['instances'])
         clock_end_inf = time.perf_counter()
-        print(f"Representation inference time: {clock_end_inf - clock_start}")
+        logger.debug(f"Representation inference time: {clock_end_inf - clock_start}")

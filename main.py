@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 REF_NUM_GPUS = 4
 REF_BATCH_SIZE = 16
 
+
 def setup(args):
     cfg = get_cfg()
     cfg.set_new_allowed(True)
@@ -46,11 +47,13 @@ def setup(args):
     # Scale iterations and LR with batch size, so we don't need to change all configs.
     # Batch size will still have to be adjusted by the user in configs/Base-RCNN.yaml
     if cfg.SOLVER.IMS_PER_BATCH != REF_BATCH_SIZE:
+        logger.warning(
+            f"Batch size of {cfg.SOLVER.IMS_PER_BATCH} instead of original {REF_BATCH_SIZE}. Adjusting hyperparams")
         batch_factor = 1 / (cfg.SOLVER.IMS_PER_BATCH / float(REF_BATCH_SIZE))
         logger.warning(f"Iterations multiplied by by {batch_factor}")
         cfg.SOLVER.STEPS = [int(step * batch_factor) for step in cfg.SOLVER.STEPS]
         cfg.SOLVER.MAX_ITER = int(cfg.SOLVER.MAX_ITER * batch_factor)
-        logger.warning(f"Iterations multiplied by {1 / batch_factor}")
+        logger.warning(f"Learning Rate multiplied by {1 / batch_factor}")
         cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR * 1 / batch_factor
     cfg.freeze()
     set_global_cfg(cfg)
