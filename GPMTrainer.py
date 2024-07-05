@@ -108,7 +108,8 @@ class GPMTrainer(MemoryTrainer):
         logger.info(f"File {file_name} saved")
 
     def get_cached_proj_matrix(self, save_name: str) -> [torch.Tensor]:
-        with open(save_name, "rb") as f:
+        file_name = f"./gpm_features/{save_name}.pickle"
+        with open(file_name, "rb") as f:
             features = pickle.load(f)
         return features
 
@@ -125,9 +126,14 @@ class GPMTrainer(MemoryTrainer):
 
         USE_GPM_CACHE = hasattr(self.cfg, 'GPM_CACHE') and self.cfg.GPM_CACHE
 
+        gpm_cache_loaded = False
         if USE_GPM_CACHE:
-            self.feature_mat = self.get_cached_proj_matrix(get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
-        else:
+            try:
+                self.feature_mat = self.get_cached_proj_matrix(get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
+                gpm_cache_loaded = True
+            except FileNotFoundError:
+                logger.error("GPM cache not found, calculating from scratch")
+        if not USE_GPM_CACHE or not gpm_cache_loaded:
             hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
 
             # Create random data according to detectron2 format

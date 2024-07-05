@@ -62,5 +62,5 @@ do
         fi
     done
 done
-python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_gfsod_r101_novel${SPLIT_ID}/tfa-like --shot-list "${SHOT_LIST[@}]}"  # summarize all results
+python3 tools/extract_results.py --res-dir ${SAVE_DIR}/defrcn_gfsod_r101_novel${SPLIT_ID}/tfa-like --shot-list "${SHOT_LIST[@]}"  # summarize all results
 fi
