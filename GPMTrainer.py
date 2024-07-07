@@ -58,9 +58,9 @@ def reduce_dict(input_dict, average=True):
 class FasterRCNNFeatureMap(FeatureMap):
     def __init__(self, multi_gpu=False, minibatch_size: int = 8):
         super().__init__()
-        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(1)] + \
-                           [f'backbone.res4.{i}.conv2' for i in range(1)] + \
-                           [f'backbone.res4.{i}.conv3' for i in range(1)]
+        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(22)] + \
+                           [f'backbone.res4.{i}.conv2' for i in range(22)] + \
+                           [f'backbone.res4.{i}.conv3' for i in range(22)]
         self.layer_names = sorted(self.layer_names)
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
@@ -137,7 +137,7 @@ class GPMTrainer(MemoryTrainer):
                     self.feature_mat[i] = self.feature_mat[i].to(self.device)
                 gpm_cache_loaded = True
             except FileNotFoundError:
-                logger.error("GPM cache not found, calculating from scratch")
+                logger.warning("GPM cache not found, calculating from scratch")
         if not USE_GPM_CACHE or not gpm_cache_loaded:
             hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
 
@@ -150,7 +150,7 @@ class GPMTrainer(MemoryTrainer):
             self.model.fmap.clear_activations()
             self.calculate_activations()
             mat_dict = get_representation_matrix(self.model, self.model.device)
-            features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
+            features = update_GPM(mat_dict, self.model.fmap.threshold, features=dict())
 
             for hook_handle in hooks:
                 hook_handle.remove()

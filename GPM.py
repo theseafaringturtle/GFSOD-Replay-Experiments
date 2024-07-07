@@ -189,7 +189,7 @@ def get_representation_matrix(net, device) -> Dict[str, Tensor]:
     return mats
 
 
-def update_GPM(model, mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[str, Tensor]:
+def update_GPM(mat_dict, threshold, features: Dict[str, Tensor]) -> Dict[str, Tensor]:
     if not features:
         # After First Task
         clock_start = time.perf_counter()
