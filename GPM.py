@@ -151,7 +151,7 @@ class FeatureMap(ABC):
         return module.in_channels
 
 
-def get_representation_matrix(net) -> Dict[str, Tensor]:
+def get_representation_matrix(net, device) -> Dict[str, Tensor]:
     logger.info(f"Computing representation matrix")
     clock_start_comp = time.perf_counter()
     # Get representation matrix (note: largest input size was used as baseline for convolutions in determine_conv_output_sizes)
@@ -179,11 +179,11 @@ def get_representation_matrix(net) -> Dict[str, Tensor]:
                         else:
                             mat[:, k] = patch.reshape(-1)
                         k += 1
-            mats[layer_name] = mat
+            mats[layer_name] = mat.to(device)
         else:
             act = net.fmap.get_activation_for_layer(layer_name).detach()
             activation = act[0:bsz].transpose(1, 0)
-            mats[layer_name] = activation
+            mats[layer_name] = activation.to(device)
     clock_end_comp = time.perf_counter()
     logger.debug(f"Representation matrix computation time: {clock_end_comp - clock_start_comp}")
     return mats

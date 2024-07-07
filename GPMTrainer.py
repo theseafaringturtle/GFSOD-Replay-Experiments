@@ -149,7 +149,7 @@ class GPMTrainer(MemoryTrainer):
             determine_conv_output_sizes(self.model, random_samples)
             self.model.fmap.clear_activations()
             self.calculate_activations()
-            mat_dict = get_representation_matrix(self.model)
+            mat_dict = get_representation_matrix(self.model, self.model.device)
             features = update_GPM(self.model, mat_dict, self.model.fmap.threshold, features=dict())
 
             for hook_handle in hooks:
