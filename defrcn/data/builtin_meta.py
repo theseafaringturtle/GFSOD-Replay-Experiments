@@ -233,10 +233,14 @@ def _get_coco_fewshot_instances_meta(split_name: str):
     base_ids = [k["id"] for k in base_categories]
     base_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(base_ids)}
     base_classes = [k["name"] for k in base_categories]
-    # If we're using a memory-based method, we only pick novel class IDs, use them separately but don't start from 0 since we're using all classes for the head, otherwise they'll overlap
+    # If we're using a memory-based method, when picking novel class IDs, don't start from 0 since we're using all classes for the head, otherwise they'll overlap
+    # Instead, use same ID mappings as the 'all' split to ensure they all fit
     novel_ids = [k["id"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1]
     if "novel_mem" in split_name:
-        novel_dataset_id_to_contiguous_id = {k: i+len(base_ids) for i, k in enumerate(novel_ids)}
+        novel_dataset_id_to_contiguous_id = {k: ret["thing_dataset_id_to_contiguous_id"][k] for k in
+                                             novel_ids}
+        base_dataset_id_to_contiguous_id = {k: ret["thing_dataset_id_to_contiguous_id"][k] for k in
+                                            base_ids}
     else:
         novel_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(novel_ids)}
     ret["novel_dataset_id_to_contiguous_id"] = novel_dataset_id_to_contiguous_id
