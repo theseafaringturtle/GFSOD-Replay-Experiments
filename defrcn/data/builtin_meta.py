@@ -236,7 +236,7 @@ def _get_coco_fewshot_instances_meta(split_name: str):
     # If we're using a memory-based method, when picking novel class IDs, don't start from 0 since we're using all classes for the head, otherwise they'll overlap
     # Instead, use same ID mappings as the 'all' split to ensure they all fit
     novel_ids = [k["id"] for k in COCO_NOVEL_CATEGORIES if k["isthing"] == 1]
-    if "novel_mem" in split_name:
+    if "novel_mem" in split_name or "base_mem" in split_name:
         novel_dataset_id_to_contiguous_id = {k: ret["thing_dataset_id_to_contiguous_id"][k] for k in
                                              novel_ids}
         base_dataset_id_to_contiguous_id = {k: ret["thing_dataset_id_to_contiguous_id"][k] for k in

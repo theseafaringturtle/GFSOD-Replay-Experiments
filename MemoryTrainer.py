@@ -16,7 +16,7 @@ class MemoryTrainer(DeFRCNTrainer):
         name_and_shots, seed = train_set_name.split("_seed")
         # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
         # It's a quick way to make sure we're using different images for base memory, just like in CFA
-        new_train_set_name = f"{re.sub('novel_mem|all', 'base', name_and_shots)}_seed{int(seed)}"
+        new_train_set_name = f"{re.sub('novel_mem|all', 'base_mem', name_and_shots)}_seed{int(seed)}"
         memory_config.DATASETS.TRAIN = [new_train_set_name]
         print(f"Using {new_train_set_name} instead of {train_set_name} for memory")
         # Use same number of shots to be the same as k used in normal config, but different base images

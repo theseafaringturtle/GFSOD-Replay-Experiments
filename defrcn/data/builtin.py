@@ -15,7 +15,7 @@ def register_all_coco(root="datasets"):
         ("coco14_test_base", "coco/val2014", "cocosplit_tfa/datasplit/5k.json"),
         ("coco14_test_novel", "coco/val2014", "cocosplit_tfa/datasplit/5k.json"),
     ]
-    for prefix in ["all", "base", "novel", "novel_mem"]:
+    for prefix in ["all", "base", "novel", "novel_mem", "base_mem"]:
         for shot in [1, 2, 3, 5, 10, 30]:
             for seed in range(10):
                 name = "coco14_trainval_{}_{}shot_seed{}".format(prefix, shot, seed)
@@ -57,7 +57,7 @@ def register_all_voc(root="datasets"):
         ("voc_2007_test_all3", "VOC2007", "test", "base_novel_3", 3),
     ]
     # Few shot splits. All will contain base and novel class shots, memory (base) just base class shots, novel just novel ones
-    for prefix in ["all", "novel", "base", "novel_mem"]:
+    for prefix in ["all", "novel", "base", "novel_mem", "base_mem"]:
         for sid in range(1, 4):
             for shot in [1, 2, 3, 5, 10]:
                 for year in [2007, 2012]:
@@ -74,7 +74,7 @@ def register_all_voc(root="datasets"):
                             keepclasses = "base_novel_{}".format(sid)
                         elif prefix == "novel" or prefix == "novel_mem": # filtering is later performed in meta_voc.py
                             keepclasses = "novel{}".format(sid)
-                        elif prefix == "base":
+                        elif prefix == "base" or prefix == "base_mem":
                             keepclasses = "base{}".format(sid)
                         else:
                             raise Exception("Unknown class filter, only all, novel and base allowed")
