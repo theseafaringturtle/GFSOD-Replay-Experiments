@@ -22,7 +22,6 @@ from MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
 
-
 def reduce_dict(input_dict, average=True):
     """
     Same as detectron's reduce_dict, but without stacking the values, which only worked for them in the loss use case
@@ -56,18 +55,17 @@ def reduce_dict(input_dict, average=True):
 
 
 class FasterRCNNFeatureMap(FeatureMap):
-    def __init__(self, multi_gpu=False, minibatch_size: int = 8):
+    def __init__(self, multi_gpu=False, batch_size: int = 8):
         super().__init__()
-        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(22)] + \
-                           [f'backbone.res4.{i}.conv2' for i in range(22)] + \
-                           [f'backbone.res4.{i}.conv3' for i in range(22)]
+        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(23)] + \
+                           [f'backbone.res4.{i}.conv2' for i in range(23)] + \
+                           [f'backbone.res4.{i}.conv3' for i in range(23)] + ['proposal_generator.rpn_head.conv']
         self.layer_names = sorted(self.layer_names)
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
             self.layer_names = ["module." + name for name in self.layer_names]
-        self.samples = {name: minibatch_size for name in self.layer_names}
-        self.threshold = {name: (0.8 if not name.endswith('conv3') else 0.7) for name in self.layer_names}
-        # self.threshold['proposal_generator.rpn_head.conv'] = 0.6
+        self.samples = {name: batch_size for name in self.layer_names}
+        self.threshold = {name: 0.97 for name in self.layer_names}
 
 
 def create_random_sample(max_size: Tuple[int, int, int]) -> dict:
@@ -91,12 +89,27 @@ def get_base_ds_name(train_set_name: str):
     return train_set_name[:train_set_name.index(match.groups()[0])]
 
 
-class GPMTrainer(MemoryTrainer):
+class GPMTrainer(DeFRCNTrainer):
 
     def __init__(self, cfg):
-        # While it's the same code as memory methods, this is for getting the base samples to build initial representation matrix.
+        # While it's mostly the same code as memory methods, this is for getting the base samples to build initial representation matrix.
         # Memory is not used in optimisation loop
         super().__init__(cfg)
+        memory_config = self.cfg.clone()
+        memory_config.defrost()
+        train_set_name = memory_config.DATASETS.TRAIN[0]
+        name_and_shots, seed = train_set_name.split("_seed")
+        # Use more samples for constructing initial representation
+        name_and_shots = re.sub('[0-9]shot', '10shot', name_and_shots)
+        # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
+        # It's a quick way to make sure we're using different images for base memory, just like in CFA
+        new_train_set_name = f"{re.sub('novel_mem|all', 'base_mem', name_and_shots)}_seed{int(seed)}"
+        memory_config.DATASETS.TRAIN = [new_train_set_name]
+        print(f"Using {new_train_set_name} instead of {train_set_name} for memory")
+        # Use same number of shots to be the same as k used in normal config, but different base images
+        self.memory_loader = self.build_train_loader(memory_config)
+        self._memory_loader_iter = iter(self.memory_loader)
+        self.memory_config = memory_config
 
     def cache_proj_matrix(self, features, save_name: str):
         os.makedirs("./gpm_features/", exist_ok=True)
@@ -122,8 +135,7 @@ class GPMTrainer(MemoryTrainer):
 
         self.model.fmap = FasterRCNNFeatureMap(
             isinstance(self.model, DataParallel) or isinstance(self.model, DistributedDataParallel),
-            self.cfg.SOLVER.IMS_PER_BATCH // get_world_size()
-        )
+            self.cfg.SOLVER.IMS_PER_BATCH)
 
         USE_GPM_CACHE = hasattr(self.cfg, 'GPM_CACHE') and self.cfg.GPM_CACHE
 
@@ -140,13 +152,14 @@ class GPMTrainer(MemoryTrainer):
                 logger.warning("GPM cache not found, calculating from scratch")
         if not USE_GPM_CACHE or not gpm_cache_loaded:
             hooks: [RemovableHandle] = register_feature_map_hooks(self.model)
+            self.model.fmap.getting_conv_size = True
 
-            # Create random data according to detectron2 format
-            random_samples: [dict] = [create_random_sample((3, 1300, 800))]
+            # Create random data according to detectron2 format. Minimum image size.
+            random_samples: [dict] = [create_random_sample((3, 640, 640))]
 
-            # next(self._memory_loader_iter)
-            # determine_conv_output_sizes(self.model, [next(self._memory_loader_iter)[0]])
             determine_conv_output_sizes(self.model, random_samples)
+            self.model.fmap.getting_conv_size = False
+
             self.model.fmap.clear_activations()
             self.calculate_activations()
             mat_dict = get_representation_matrix(self.model, self.model.device)
@@ -186,9 +199,7 @@ class GPMTrainer(MemoryTrainer):
         losses = sum(loss_dict.values())
         losses.backward()
 
-        # self.current_gradient = self.get_gradient(self.model)
-
-        # Gradient projections
+        # GPM optimisation, from Saha et al. 2021
         feature_max_index = 0
 
         for layer_index, (m, params) in enumerate(self.model.named_parameters()):
@@ -196,34 +207,38 @@ class GPMTrainer(MemoryTrainer):
             is_feature_weight = len(params.size()) != 1
             if is_feature_layer and is_feature_weight:
                 sz = params.grad.data.size(0)
-                layer_gradient = params.grad.data.to(self.device)
+                layer_gradient = params.grad.dafta.to(self.device)
                 params.grad.data = layer_gradient - torch.mm(layer_gradient.view(sz, -1),
                                                              self.feature_mat[feature_max_index]).view(params.size())
                 feature_max_index += 1
 
-        # self.update_gradient(self.model, grad_proj)
-
         self._write_metrics(loss_dict, data_time)
 
-        """
-        If you need gradient clipping/scaling or other processing, you can
-        wrap the optimizer with your custom `step()` method. But it is
-        suboptimal as explained in https://arxiv.org/abs/2006.15704 Sec 3.2.4
-        """
         self.optimizer.step()
 
     def calculate_activations(self):
         # Run model but ignore output, we only care about catching the activations through the capture_activation hook
         clock_start = time.perf_counter()
-        # Sanity check
+        # Sample check
+        num_images_seen = 0
         # Make sure at least y instances are predicted through RPN, otherwise number of samples passing through ROI heads will be 0
         roi_activations = 0
         min_activations = min(self.model.fmap.samples.values())
         num_act_iterations = 0
-        while roi_activations < min_activations and num_act_iterations < 200:
+        while (num_images_seen < min_activations or roi_activations < min_activations) and num_act_iterations < 200:
             logger.debug(f"{roi_activations}/{min_activations} activations found, continuing")
-            example_out = self.model(self.get_memory_batch())
+            mem_batch = self.get_memory_batch()
+            example_out = self.model(mem_batch)
+            num_images_seen += len(mem_batch)
             for example_image_results in example_out:
                 roi_activations += len(example_image_results['instances'])
         clock_end_inf = time.perf_counter()
         logger.debug(f"Representation inference time: {clock_end_inf - clock_start}")
+
+    def get_memory_batch(self):
+        memory_data = next(self._memory_loader_iter)
+        return memory_data
+
+    def get_current_batch(self):
+        current_data = next(self._data_loader_iter)
+        return current_data
