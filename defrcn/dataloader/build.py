@@ -146,12 +146,23 @@ def print_instances_class_histogram(dataset_dicts, class_names):
         dataset_dicts (list[dict]): list of dataset dicts.
         class_names (list[str]): list of class names (zero-indexed).
     """
+    # Get set of class IDs
+    class_ids = set()
+    for sample in dataset_dicts:
+        sample_ids = [anno['category_id'] for anno in sample['annotations']]
+        for sample_id in sample_ids:
+            class_ids.add(sample_id)
+    class_ids = sorted(list(class_ids))
+
     num_classes = len(class_names)
     hist_bins = np.arange(num_classes + 1)
     histogram = np.zeros((num_classes,), dtype=int)
     for entry in dataset_dicts:
         annos = entry["annotations"]
         classes = [x["category_id"] for x in annos if not x.get("iscrowd", 0)]
+        # Map category ids to array indexes of histogram for visualisation
+        # Useful for novel_mem sets, whose class IDs don't start from 0, since lower contiguous classifier IDs are occupied by base classes.
+        classes = [class_ids.index(cat_id) for cat_id in classes]
         histogram += np.histogram(classes, bins=hist_bins)[0]
 
     N_COLS = min(6, len(class_names) * 2)

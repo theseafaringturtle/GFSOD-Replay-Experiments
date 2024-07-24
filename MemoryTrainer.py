@@ -14,8 +14,6 @@ class MemoryTrainer(DeFRCNTrainer):
         # Assuming only 1 dataset at a time, as per usual, e.g. (voc_2007_trainval_novel1_2shot_seed0,)
         train_set_name = memory_config.DATASETS.TRAIN[0]
         name_and_shots, seed = train_set_name.split("_seed")
-        # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
-        # It's a quick way to make sure we're using different images for base memory, just like in CFA
         new_train_set_name = f"{re.sub('novel_mem|all', 'base_mem', name_and_shots)}_seed{int(seed)}"
         memory_config.DATASETS.TRAIN = [new_train_set_name]
         print(f"Using {new_train_set_name} instead of {train_set_name} for memory")

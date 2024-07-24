@@ -207,7 +207,7 @@ class GPMTrainer(DeFRCNTrainer):
             is_feature_weight = len(params.size()) != 1
             if is_feature_layer and is_feature_weight:
                 sz = params.grad.data.size(0)
-                layer_gradient = params.grad.dafta.to(self.device)
+                layer_gradient = params.grad.data.to(self.device)
                 params.grad.data = layer_gradient - torch.mm(layer_gradient.view(sz, -1),
                                                              self.feature_mat[feature_max_index]).view(params.size())
                 feature_max_index += 1
