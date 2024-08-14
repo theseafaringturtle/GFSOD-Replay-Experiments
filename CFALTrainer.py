@@ -1,21 +1,20 @@
-import time
 import torch
 
 from MemoryTrainer import MemoryTrainer
 
-class CFALTrainer(MemoryTrainer):
 
-    def run_step(self):
+class CFALTrainer(MemoryTrainer):
+    # An attempt at combining CFA and MEGA-I
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.eps_agem = 1e-7
+
+    def step(self, mem_data, novel_data):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
-        start = time.perf_counter()
 
         # Calculate current gradients
-        self.optimizer.zero_grad()
-
-        data = self.get_current_batch()
-        data_time = time.perf_counter() - start
-
-        loss_dict = self.model(data)
+        loss_dict = self.model(novel_data)
         losses = sum(loss_dict.values())
         losses.backward()
 
@@ -24,8 +23,7 @@ class CFALTrainer(MemoryTrainer):
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
-        memory_data = self.get_memory_batch()
-        memory_loss_dict = self.model(memory_data)
+        memory_loss_dict = self.model(mem_data)
         memory_losses = sum(memory_loss_dict.values())
         memory_losses.backward()
 
@@ -52,13 +50,3 @@ class CFALTrainer(MemoryTrainer):
             grad_proj = (1 - ratio) * (1 - (dot_prod / (gb_mag_sq + self.eps_agem))) * self.memory_gradient \
                         + ratio * (1 - (dot_prod / (gn_mag_sq + self.eps_agem))) * self.current_gradient
             self.update_gradient(self.model, grad_proj)
-
-        self._write_metrics(loss_dict, data_time)
-
-        self.optimizer.step()
-
-    # def vec_angle(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
-    #     mag1 = torch.linalg.norm(v1)
-    #     mag2 = torch.linalg.norm(v2)
-    #     dot_prod = torch.dot(v1, v2)
-    #     return torch.acos(dot_prod / (mag1 * mag2))

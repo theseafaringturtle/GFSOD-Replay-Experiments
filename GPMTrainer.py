@@ -22,6 +22,7 @@ from MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
 
+
 def reduce_dict(input_dict, average=True):
     """
     Same as detectron's reduce_dict, but without stacking the values, which only worked for them in the loss use case
@@ -89,27 +90,8 @@ def get_base_ds_name(train_set_name: str):
     return train_set_name[:train_set_name.index(match.groups()[0])]
 
 
-class GPMTrainer(DeFRCNTrainer):
-
-    def __init__(self, cfg):
-        # While it's mostly the same code as memory methods, this is for getting the base samples to build initial representation matrix.
-        # Memory is not used in optimisation loop
-        super().__init__(cfg)
-        memory_config = self.cfg.clone()
-        memory_config.defrost()
-        train_set_name = memory_config.DATASETS.TRAIN[0]
-        name_and_shots, seed = train_set_name.split("_seed")
-        # Use more samples for constructing initial representation
-        name_and_shots = re.sub('[0-9]shot', '10shot', name_and_shots)
-        # Use only base classes, add 10 to seed, so if we're running novel 0-9 we'll get base memory from 10-19
-        # It's a quick way to make sure we're using different images for base memory, just like in CFA
-        new_train_set_name = f"{re.sub('novel_mem|all', 'base_mem', name_and_shots)}_seed{int(seed)}"
-        memory_config.DATASETS.TRAIN = [new_train_set_name]
-        print(f"Using {new_train_set_name} instead of {train_set_name} for memory")
-        # Use same number of shots to be the same as k used in normal config, but different base images
-        self.memory_loader = self.build_train_loader(memory_config)
-        self._memory_loader_iter = iter(self.memory_loader)
-        self.memory_config = memory_config
+class GPMTrainer(MemoryTrainer):
+    # Adapted from Gradient Projection Memory by Saha et al.
 
     def cache_proj_matrix(self, features, save_name: str):
         os.makedirs("./gpm_features/", exist_ok=True)
@@ -183,22 +165,15 @@ class GPMTrainer(DeFRCNTrainer):
             # If on main process, cache the projection matrix
             if get_rank() == 0:
                 self.cache_proj_matrix(self.feature_mat, get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
-            self.model.train()
+        self.update_filter(load_base=False, load_novel=True)
+        self.model.train()
 
-    def run_step(self):
+    def step(self, _: [dict], novel_data: [dict]):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
-        start = time.perf_counter()
 
-        # Calculate current gradients
-        self.optimizer.zero_grad()
-
-        data = self.get_current_batch()
-        data_time = time.perf_counter() - start
-
-        loss_dict = self.model(data)
+        loss_dict = self.model(novel_data)
         losses = sum(loss_dict.values())
         losses.backward()
-
         # GPM optimisation, from Saha et al. 2021
         feature_max_index = 0
 
@@ -212,8 +187,6 @@ class GPMTrainer(DeFRCNTrainer):
                                                              self.feature_mat[feature_max_index]).view(params.size())
                 feature_max_index += 1
 
-        self._write_metrics(loss_dict, data_time)
-
         self.optimizer.step()
 
     def calculate_activations(self):
@@ -225,20 +198,16 @@ class GPMTrainer(DeFRCNTrainer):
         roi_activations = 0
         min_activations = min(self.model.fmap.samples.values())
         num_act_iterations = 0
+        iterator = next(self.get_all_fs_base_samples())
         while (num_images_seen < min_activations or roi_activations < min_activations) and num_act_iterations < 200:
             logger.debug(f"{roi_activations}/{min_activations} activations found, continuing")
-            mem_batch = self.get_memory_batch()
-            example_out = self.model(mem_batch)
-            num_images_seen += len(mem_batch)
+            try:
+                mem_sample = next(iterator)
+            except StopIteration:
+                raise StopIteration("Error: reached the end of the dataset without extracting relevant proposals")
+            example_out = self.model([mem_sample])
+            num_images_seen += len(mem_sample)
             for example_image_results in example_out:
                 roi_activations += len(example_image_results['instances'])
         clock_end_inf = time.perf_counter()
         logger.debug(f"Representation inference time: {clock_end_inf - clock_start}")
-
-    def get_memory_batch(self):
-        memory_data = next(self._memory_loader_iter)
-        return memory_data
-
-    def get_current_batch(self):
-        current_data = next(self._data_loader_iter)
-        return current_data

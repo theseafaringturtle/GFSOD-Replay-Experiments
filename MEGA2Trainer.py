@@ -1,36 +1,26 @@
-import time
-import re
 import torch
 
-from DeFRCNTrainer import DeFRCNTrainer
 from MemoryTrainer import MemoryTrainer
 
 
 class MEGA2Trainer(MemoryTrainer):
 
-    def run_step(self):
+    def step(self, mem_data, novel_data):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
-        start = time.perf_counter()
 
         # Calculate current gradients
-        self.optimizer.zero_grad()
-
-        data = self.get_current_batch()
-        data_time = time.perf_counter() - start
-
-        loss_dict = self.model(data)
-        self.current_loss = sum(loss_dict.values())
-        self.current_loss.backward()
+        loss_dict = self.model(novel_data)
+        loss = sum(loss_dict.values())
+        loss.backward()
 
         self.current_gradient = self.get_gradient(self.model)
 
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
-        memory_data = self.get_memory_batch()
-        memory_loss_dict = self.model(memory_data)
-        self.memory_loss = sum(memory_loss_dict.values())
-        self.memory_loss.backward()
+        memory_loss_dict = self.model(mem_data)
+        memory_loss = sum(memory_loss_dict.values())
+        memory_loss.backward()
 
         self.memory_gradient = self.get_gradient(self.model)
 
@@ -49,7 +39,7 @@ class MEGA2Trainer(MemoryTrainer):
             thetas.append((torch.rand(1) * torch.pi / 2).squeeze())
             objectives.append((torch.rand(1) * torch.pi / 2).squeeze())
 
-        self.ratio = self.memory_loss / self.current_loss
+        self.ratio = memory_loss / loss
 
         # Find an angle ˜θ that maximises: current_loss * cos(beta) + memory_loss * cos(theta − β).
         # MEGA-II's implementation is to sample 3 random ones then adjust them
@@ -64,7 +54,7 @@ class MEGA2Trainer(MemoryTrainer):
                 thetas[idx] = theta
                 steps += 1
 
-            objectives[idx] = self.current_loss * torch.cos(thetas[idx]) + self.memory_loss * torch.cos(
+            objectives[idx] = loss * torch.cos(thetas[idx]) + memory_loss * torch.cos(
                 self.angle_tilda - thetas[idx])
 
         objectives = torch.tensor(objectives)
@@ -87,11 +77,3 @@ class MEGA2Trainer(MemoryTrainer):
         if self.deno >= sensitivity:
             g_tilda = compute_g_tilda(tr, tt, rr, self.current_gradient, self.memory_gradient)
             self.update_gradient(self.model, g_tilda)
-        self._write_metrics(loss_dict, data_time)
-
-        """
-        If you need gradient clipping/scaling or other processing, you can
-        wrap the optimizer with your custom `step()` method. But it is
-        suboptimal as explained in https://arxiv.org/abs/2006.15704 Sec 3.2.4
-        """
-        self.optimizer.step()

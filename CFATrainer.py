@@ -1,24 +1,19 @@
-import time
-import re
 import torch
 
-from DeFRCNTrainer import DeFRCNTrainer
 from MemoryTrainer import MemoryTrainer
 
 
 class CFATrainer(MemoryTrainer):
 
-    def run_step(self):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.eps_agem = 1e-7
+
+    def step(self, mem_data, novel_data):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
-        start = time.perf_counter()
 
         # Calculate current gradients
-        self.optimizer.zero_grad()
-
-        data = self.get_current_batch()
-        data_time = time.perf_counter() - start
-
-        loss_dict = self.model(data)
+        loss_dict = self.model(novel_data)
         losses = sum(loss_dict.values())
         losses.backward()
 
@@ -27,8 +22,7 @@ class CFATrainer(MemoryTrainer):
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
-        memory_data = self.get_memory_batch()
-        memory_loss_dict = self.model(memory_data)
+        memory_loss_dict = self.model(mem_data)
         memory_losses = sum(memory_loss_dict.values())
         memory_losses.backward()
 
@@ -45,13 +39,10 @@ class CFATrainer(MemoryTrainer):
             # Average the projections of gn-on-gb and gb-on-gn, formula provided in paper's algo is simplified to
             # g = (gn - (gn.gb) / (gb.gb) * gb +  gb - (gb.gn) / (gn.gn) * gn ) / 2
             # =  ( gn * (1 - (gb.gn) / (gn.gn) + gb * (1 - (gn.gb) / (gb.gb)) / 2
-            grad_proj = 0.5 * (1 - (dot_prod / (gb_mag_sq + self.eps_agem))) * self.memory_gradient \
-                        + 0.5 * (1 - (dot_prod / (gn_mag_sq + self.eps_agem))) * self.current_gradient
+            grad_proj = 0.5 * (1 - (dot_prod / gn_mag_sq)) * self.current_gradient \
+                        + 0.5 * (1 - (dot_prod / gb_mag_sq)) * self.memory_gradient
+
             self.update_gradient(self.model, grad_proj)
-
-        self._write_metrics(loss_dict, data_time)
-
-        self.optimizer.step()
 
     def vec_angle(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
         mag1 = torch.linalg.norm(v1)

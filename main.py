@@ -7,15 +7,15 @@ from detectron2.engine import launch
 from detectron2.checkpoint import DetectionCheckpointer
 
 from AGEMTrainer import AGEMTrainer
-from AlterTrainer import AlterTrainer
 from CFALTrainer import CFALTrainer
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
+from DebugTrainer import DebugTrainer
 from EWCTrainer import EWCTrainer
 from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer
 from MemoryTrainer import MemoryTrainer
-from SimpleLossTrainer import SimpleLossTrainer
+from ERTrainer import ERTrainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
@@ -64,33 +64,9 @@ def setup(args):
 def main(args):
     cfg = setup(args)
     cfg.defrost()
-    if cfg.TRAINER == "CFATrainer":
-        TrainerClass = CFATrainer
-    elif cfg.TRAINER == "CFALTrainer":
-        TrainerClass = CFALTrainer
-    elif cfg.TRAINER == "AlterTrainer":
-        TrainerClass = AlterTrainer
-    elif cfg.TRAINER == "AGEMTrainer":
-        TrainerClass = AGEMTrainer
-    elif cfg.TRAINER == "MEGA2Trainer":
-        TrainerClass = MEGA2Trainer
-    elif cfg.TRAINER == "DeFRCNTrainer":
-        TrainerClass = DeFRCNTrainer
-    elif cfg.TRAINER == "GPMTrainer":
-        TrainerClass = GPMTrainer
-    elif cfg.TRAINER == "SimpleLossTrainer":
-        TrainerClass = SimpleLossTrainer
-    elif cfg.TRAINER == "EWCTrainer":
-        TrainerClass = EWCTrainer
-    else:
-        raise Exception(f"Unknown trainer: {cfg.TRAINER}")
-    # Use only novel data for novel gradient batch in memory-based methods.
-    # Will require change to dataloader IDs and prototypes, give gfsod expects all classes
-    if issubclass(TrainerClass, MemoryTrainer) or issubclass(TrainerClass, GPMTrainer):
-        cfg.DATASETS.TRAIN = [f"{re.sub('all', 'novel_mem', cfg.DATASETS.TRAIN[0])}"]
-    # Don't recompute most significant weights for every experiment, save them for each base dataset
-    if issubclass(TrainerClass, GPMTrainer):
-        cfg.GPM_CACHE = False
+    TrainerClass = globals()[cfg.TRAINER]
+    # Using DeFRCNTrainer as superclass for all trainers. Not strictly required.
+    assert issubclass(TrainerClass, DeFRCNTrainer)
 
     cfg.freeze()
     if args.eval_only:
