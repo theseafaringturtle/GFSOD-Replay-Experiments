@@ -142,18 +142,22 @@ class MemoryTrainer(DeFRCNTrainer):
             metrics_dict = {
                 k: np.mean([x[k] for x in all_metrics_dict]) for k in all_metrics_dict[0].keys()
             }
-            # Check loss, log loss
+            # If memory loss is present, pop those key-values and sum them up
+            memory_loss_dict = {k: metrics_dict.pop(k) for k in list(metrics_dict.keys()) if "memory_loss" in k}
+            memory_losses_reduced = sum(memory_loss_dict.values())
+            # Sum up current loss
             loss_dict = {k: v for k, v in metrics_dict.items() if "loss" in k}
-            total_losses_reduced = sum(loss_dict.values())
-            if not np.isfinite(total_losses_reduced):
+            current_losses_reduced = sum(loss_dict.values())
+            if not np.isfinite(current_losses_reduced) or not np.isfinite(memory_losses_reduced):
                 raise FloatingPointError(
                     f"Loss became infinite or NaN at iteration={self.iter}!\n"
                     f"loss_dict = {metrics_dict}"
                 )
-            storage.put_scalar("{}total_loss".format(prefix), total_losses_reduced)
+            storage.put_scalar("{}total_loss".format(prefix), current_losses_reduced)
+            if memory_losses_reduced:
+                storage.put_scalar("{}memory_total_loss".format(prefix), memory_losses_reduced)
             # Log any additional metrics other than loss passed to this function
-            if len(metrics_dict) != len(loss_dict):
-                storage.put_scalars(**metrics_dict)
+            storage.put_scalars(**{k: v for k, v in metrics_dict.items() if "loss" not in k})
 
     def get_gradient(self, model):
         gradient = []

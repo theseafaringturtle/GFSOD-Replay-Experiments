@@ -77,3 +77,6 @@ class MEGA2Trainer(MemoryTrainer):
         if self.deno >= sensitivity:
             g_tilda = compute_g_tilda(tr, tt, rr, self.current_gradient, self.memory_gradient)
             self.update_gradient(self.model, g_tilda)
+
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
+        self.add_metrics(loss_dict)

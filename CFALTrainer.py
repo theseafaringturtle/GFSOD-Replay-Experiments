@@ -50,3 +50,6 @@ class CFALTrainer(MemoryTrainer):
             grad_proj = (1 - ratio) * (1 - (dot_prod / (gb_mag_sq + self.eps_agem))) * self.memory_gradient \
                         + ratio * (1 - (dot_prod / (gn_mag_sq + self.eps_agem))) * self.current_gradient
             self.update_gradient(self.model, grad_proj)
+
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
+        self.add_metrics(loss_dict)

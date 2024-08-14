@@ -44,7 +44,11 @@ class CFATrainer(MemoryTrainer):
 
             self.update_gradient(self.model, grad_proj)
 
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
+        self.add_metrics(loss_dict)
+
     def vec_angle(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
+        """Just for stats"""
         mag1 = torch.linalg.norm(v1)
         mag2 = torch.linalg.norm(v2)
         dot_prod = torch.dot(v1, v2)

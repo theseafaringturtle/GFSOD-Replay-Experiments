@@ -187,7 +187,8 @@ class GPMTrainer(MemoryTrainer):
                                                              self.feature_mat[feature_max_index]).view(params.size())
                 feature_max_index += 1
 
-        self.optimizer.step()
+        self.add_metrics(loss_dict)
+
 
     def calculate_activations(self):
         # Run model but ignore output, we only care about catching the activations through the capture_activation hook

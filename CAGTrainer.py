@@ -33,6 +33,9 @@ class CAGTrainer(MemoryTrainer):
 
         self.update_gradient(self.model, grad_res)
 
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
+        self.add_metrics(loss_dict)
+
     def cagrad(self, c=0.5):
         avg_gradient = (self.memory_gradient + self.current_gradient) / 2
 
@@ -48,7 +51,8 @@ class CAGTrainer(MemoryTrainer):
         def obj(x):
             # g_w^T g_0: x*0.5*(g11+g22-2g12)+(0.5+x)*(g12-g22)+g22
             # g_w^T g_w: x^2*(g11+g22-2g12)+2*x*(g12-g22)+g22
-            return coef * np.sqrt(x ** 2 * (gb_mag_sq + gn_mag_sq - 2 * dot_prod) + 2 * x * (dot_prod - gn_mag_sq) + gn_mag_sq + 1e-4) + \
+            return coef * np.sqrt(
+                x ** 2 * (gb_mag_sq + gn_mag_sq - 2 * dot_prod) + 2 * x * (dot_prod - gn_mag_sq) + gn_mag_sq + 1e-4) + \
                    0.5 * x * (gb_mag_sq + gn_mag_sq - 2 * dot_prod) + (0.5 + x) * (dot_prod - gn_mag_sq) + gn_mag_sq
 
         res = minimize_scalar(obj, bounds=(0, 1), method='bounded')

@@ -23,4 +23,5 @@ class ERTrainer(MemoryTrainer):
 
         total_loss.backward()
 
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
         self.add_metrics(loss_dict)

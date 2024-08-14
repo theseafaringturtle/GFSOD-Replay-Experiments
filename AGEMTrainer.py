@@ -36,3 +36,6 @@ class AGEMTrainer(MemoryTrainer):
             self.update_gradient(self.model, grad_proj)
         else:
             self.update_gradient(self.model, self.current_gradient)
+
+        self.add_metrics({"memory_" + k: v for k, v in memory_loss_dict.items()})
+        self.add_metrics(loss_dict)
