@@ -16,6 +16,7 @@ from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer
 from MemoryTrainer import MemoryTrainer
 from ERTrainer import ERTrainer
+from CAGTrainer import CAGTrainer
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
