@@ -184,8 +184,6 @@ class MemoryTrainer(DeFRCNTrainer):
         memory_cfg = self.cfg.clone()
         memory_cfg.defrost()
         memory_cfg.SOLVER.IMS_PER_BATCH = 1
-        memory_cfg.SEQUENTIAL_SAMPLES = True
-        # TODO should just use infinite_indices=False instead
         memory_loader = self.build_train_loader(memory_cfg)
         iterator = iter(memory_loader)
         dataset_length = len(memory_loader.dataset.dataset)
@@ -195,5 +193,5 @@ class MemoryTrainer(DeFRCNTrainer):
             if self.is_novel(sample):
                 continue
             else:
-                print(sample.get("file_name"))
+                # print(sample.get("file_name"))
                 yield sample
