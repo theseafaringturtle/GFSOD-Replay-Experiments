@@ -46,7 +46,7 @@ def setup(args):
         cfg.merge_from_list(args.opts)
     # Scale iterations and LR with batch size, so we don't need to change all configs.
     # Batch size will still have to be adjusted by the user in configs/Base-RCNN.yaml
-    if False:
+    if cfg.SOLVER.IMS_PER_BATCH != REF_BATCH_SIZE:
         logger.warning(
             f"Batch size of {cfg.SOLVER.IMS_PER_BATCH} instead of original {REF_BATCH_SIZE}. Adjusting hyperparams")
         batch_factor = 1 / (cfg.SOLVER.IMS_PER_BATCH / float(REF_BATCH_SIZE))
