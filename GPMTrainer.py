@@ -163,7 +163,7 @@ class GPMTrainer(MemoryTrainer):
                     dist.all_reduce(tensor, op=dist.ReduceOp.AVG)
                     self.feature_mat[i] = tensor
             # If on main process, cache the projection matrix
-            if get_rank() == 0:
+            if get_world_size() == 1 or get_rank() == 0:
                 self.cache_proj_matrix(self.feature_mat, get_base_ds_name(self.cfg.DATASETS.TRAIN[0]))
         self.update_filter(load_base=False, load_novel=True)
         self.model.train()
