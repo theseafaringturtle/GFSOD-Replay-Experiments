@@ -1,10 +1,11 @@
 import logging
 import time
 
+import torch
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.events import EventStorage
-from torch.distributed import get_rank, scatter
 
+from detectron2.utils import comm
 from MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
@@ -32,23 +33,20 @@ class EWCTrainer(MemoryTrainer):
 
         # Accumulate base gradients
         num_samples_run = 0
-        if get_world_size() == 1 or get_world_size() > 1 and get_rank() == 0:
-            with EventStorage() as storage:
-                for base_sample in self.get_all_fs_base_samples():
-                    loss_dict = self.model([base_sample])
-                    losses = sum(loss_dict.values())
-                    losses.backward()
-                    num_samples_run += 1
-                    if num_samples_run > 2:
-                        break
+        with EventStorage() as storage:
+            for base_samples in self.get_all_fs_base_samples():
+                loss_dict = self.model(base_samples)
+                losses = sum(loss_dict.values())
+                losses.backward()
+                num_samples_run += 1
+                logger.info(f"Samples parsed on GPU {comm.get_rank()}: {num_samples_run}")
             # Scatter accumulated gradients to other machines
-            if get_world_size() > 1:
-                grad = self.get_gradient(self.model)
-                scatter(grad, scatter_list=grad, src=0)
-        else:
-            grad = None
-            scatter(grad, src=0)
-            self.update_gradient(self.model, grad[0])
+        if get_world_size() > 1:
+            logger.info(f"Gathering from GPU {comm.get_rank()}")
+            grad = self.get_gradient(self.model)
+            grads_list = comm.all_gather(grad)
+            dist_accumulated_grads = sum(grads_list)
+            self.update_gradient(self.model, dist_accumulated_grads)
 
         # Calculate Fisher Information Matrix
         for name, param in self.model.named_parameters():

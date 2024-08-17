@@ -28,6 +28,8 @@ __all__ = [
     "print_instances_class_histogram",
 ]
 
+from .finite_sampler import FiniteTrainingSampler
+
 
 def filter_images_with_only_crowd_annotations(dataset_dicts):
     """
@@ -314,6 +316,8 @@ def _train_loader_from_config(cfg, *, mapper=None, dataset=None, sampler=None):
                 dataset, cfg.DATALOADER.REPEAT_THRESHOLD
             )
             sampler = RepeatFactorTrainingSampler(repeat_factors)
+        elif sampler_name == "FiniteTrainingSampler":
+            sampler = FiniteTrainingSampler(len(dataset))
         else:
             raise ValueError("Unknown training sampler: {}".format(sampler_name))
 

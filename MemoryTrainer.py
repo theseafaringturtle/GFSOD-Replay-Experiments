@@ -183,15 +183,18 @@ class MemoryTrainer(DeFRCNTrainer):
         """
         memory_cfg = self.cfg.clone()
         memory_cfg.defrost()
+        memory_cfg.DATALOADER.SAMPLER_TRAIN = "FiniteTrainingSampler"
         memory_cfg.SOLVER.IMS_PER_BATCH = 1
         memory_loader = self.build_train_loader(memory_cfg)
         iterator = iter(memory_loader)
         dataset_length = len(memory_loader.dataset.dataset)
         for i in range(dataset_length):
             # Since we've set IMS_PER_BATCH = 1, pick first
-            sample = next(iterator)[0]
-            if self.is_novel(sample):
+            samples = next(iterator)
+            samples = [sample for sample in samples if not self.is_novel(sample)]
+            # Empty after filtering
+            if not samples:
                 continue
             else:
-                # print(sample.get("file_name"))
-                yield sample
+                print([sample.get("file_name") for sample in samples])
+                yield samples

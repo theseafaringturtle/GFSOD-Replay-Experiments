@@ -203,7 +203,7 @@ class GPMTrainer(MemoryTrainer):
         while (num_images_seen < min_activations or roi_activations < min_activations) and num_act_iterations < 200:
             logger.debug(f"{roi_activations}/{min_activations} activations found, continuing")
             try:
-                mem_sample = next(iterator)
+                mem_sample = next(iterator)[0]
             except StopIteration:
                 raise StopIteration("Error: reached the end of the dataset without extracting relevant proposals")
             example_out = self.model([mem_sample])
