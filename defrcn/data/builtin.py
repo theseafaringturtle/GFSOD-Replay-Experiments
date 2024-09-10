@@ -1,3 +1,4 @@
+import glob
 import os
 from .meta_voc import register_meta_voc
 from .meta_coco import register_meta_coco
@@ -15,9 +16,10 @@ def register_all_coco(root="datasets"):
         ("coco14_test_base", "coco/val2014", "cocosplit/datasplit/5k.json"),
         ("coco14_test_novel", "coco/val2014", "cocosplit/datasplit/5k.json"),
     ]
+    num_fs_splits = len(glob.glob(f"{root}/cocosplit/seed*", ))
     for prefix in ["all", "base", "novel", "novel_mem", "base_mem"]:
         for shot in [1, 2, 3, 5, 10, 30]:
-            for seed in range(10):
+            for seed in range(num_fs_splits):
                 name = "coco14_trainval_{}_{}shot_seed{}".format(prefix, shot, seed)
                 METASPLITS.append((name, "coco/trainval2014", ""))
 
@@ -56,12 +58,13 @@ def register_all_voc(root="datasets"):
         ("voc_2007_test_all2", "VOC2007", "test", "base_novel_2", 2),
         ("voc_2007_test_all3", "VOC2007", "test", "base_novel_3", 3),
     ]
+    num_fs_splits = len(glob.glob(f"{root}/vocsplit/seed*", ))
     # Few shot splits. All will contain base and novel class shots, memory (base) just base class shots, novel just novel ones
     for prefix in ["all", "novel", "base", "novel_mem", "base_mem"]:
         for sid in range(1, 4):
             for shot in [1, 2, 3, 5, 10]:
                 for year in [2007, 2012]:
-                    for seed in range(30):
+                    for seed in range(num_fs_splits):
                         seed = "_seed{}".format(seed)
                         name = "voc_{}_trainval_{}{}_{}shot{}".format(
                             year, prefix, sid, shot, seed
