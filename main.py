@@ -10,7 +10,6 @@ from AGEMTrainer import AGEMTrainer
 from CFALTrainer import CFALTrainer
 from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
-from DebugTrainer import DebugTrainer
 from EWCTrainer import EWCTrainer
 from GPMTrainer import GPMTrainer
 from MEGA2Trainer import MEGA2Trainer

@@ -95,7 +95,7 @@ def register_all_voc(root="datasets"):
         )
         MetadataCatalog.get(name).evaluator_type = "pascal_voc"
 
-DATASET_BASE_DIR = os.environ.get('DATASET_BASE_DIR', 'datasets')
+DATASET_BASE_DIR = "datasets"
 
 register_all_coco(DATASET_BASE_DIR)
 register_all_voc(DATASET_BASE_DIR)

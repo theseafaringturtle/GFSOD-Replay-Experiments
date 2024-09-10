@@ -8,7 +8,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 
 __all__ = ["register_meta_voc"]
 
-DATASET_BASE_DIR = os.environ.get('DATASET_BASE_DIR', 'datasets')
+DATASET_BASE_DIR = 'datasets'
 
 def load_filtered_voc_instances(
     name: str, dirname: str, split: str, classnames: str
@@ -21,11 +21,13 @@ def load_filtered_voc_instances(
     """
     is_shots = "shot" in name
     if is_shots:
-        fileids = {}
-        split_dir = os.path.join(DATASET_BASE_DIR, "vocsplit_tfa")
+        if not os.path.exists(DATASET_BASE_DIR):
+            raise FileNotFoundError(f"./{DATASET_BASE_DIR} should be a symlink or directory containing 'vocsplit'")
+        split_dir = os.path.join(DATASET_BASE_DIR, "vocsplit")
         shot = name.split("_")[-2].split("shot")[0]
         seed = int(name.split("_seed")[-1])
         split_dir = os.path.join(split_dir, "seed{}".format(seed))
+        fileids = {}
         for cls in classnames:
             with PathManager.open(
                 os.path.join(
