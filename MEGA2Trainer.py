@@ -1,4 +1,5 @@
 import torch
+import math
 
 from MemoryTrainer import MemoryTrainer
 
@@ -15,6 +16,8 @@ class MEGA2Trainer(MemoryTrainer):
 
         self.current_gradient = self.get_gradient(self.model)
 
+        loss = loss.detach()
+
         # Calculate memory gradients
         self.optimizer.zero_grad()
 
@@ -23,6 +26,8 @@ class MEGA2Trainer(MemoryTrainer):
         memory_loss.backward()
 
         self.memory_gradient = self.get_gradient(self.model)
+
+        memory_loss = memory_loss.detach() # avoid backpropagation on next formulae
 
         # MEGA-II
         sensitivity = 1e-10
@@ -36,8 +41,8 @@ class MEGA2Trainer(MemoryTrainer):
 
         for _ in range(3):
             # both thetas and objectives are random (0, pi)
-            thetas.append((torch.rand(1) * torch.pi / 2).squeeze())
-            objectives.append((torch.rand(1) * torch.pi / 2).squeeze())
+            thetas.append((torch.rand(1) * math.pi / 2).squeeze())
+            objectives.append((torch.rand(1) * math.pi / 2).squeeze())
 
         self.ratio = memory_loss / loss
 
@@ -50,7 +55,7 @@ class MEGA2Trainer(MemoryTrainer):
                 theta = thetas[idx]
                 theta = theta + (1 / (1 + self.ratio)) * (
                         -torch.sin(theta) + self.ratio * torch.sin(self.angle_tilda - theta))
-                theta = torch.clamp(theta, min=0.0, max=0.5 * torch.pi)
+                theta = torch.clamp(theta, min=0.0, max=0.5 * math.pi)
                 thetas[idx] = theta
                 steps += 1
 
