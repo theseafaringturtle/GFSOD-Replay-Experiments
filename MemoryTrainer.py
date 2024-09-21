@@ -81,6 +81,8 @@ class MemoryTrainer(DeFRCNTrainer):
 
         self.metrics_dict = {"data_time": data_time}
 
+        self.optimizer.zero_grad()
+
         self.step(mem_data, novel_data)
 
         self.write_metrics(self.metrics_dict)
