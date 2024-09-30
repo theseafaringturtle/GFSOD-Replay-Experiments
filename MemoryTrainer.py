@@ -186,7 +186,7 @@ class MemoryTrainer(DeFRCNTrainer):
         memory_cfg = self.cfg.clone()
         memory_cfg.defrost()
         memory_cfg.DATALOADER.SAMPLER_TRAIN = "FiniteTrainingSampler"
-        memory_cfg.SOLVER.IMS_PER_BATCH = 1
+        memory_cfg.SOLVER.IMS_PER_BATCH = comm.get_world_size()
         memory_loader = self.build_train_loader(memory_cfg)
         iterator = iter(memory_loader)
         dataset_length = len(memory_loader.dataset.dataset)
@@ -198,5 +198,5 @@ class MemoryTrainer(DeFRCNTrainer):
             if not samples:
                 continue
             else:
-                print([sample.get("file_name") for sample in samples])
+                # print([sample.get("file_name") for sample in samples])
                 yield samples
