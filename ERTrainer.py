@@ -7,6 +7,11 @@ logger = logging.getLogger("defrcn").getChild(__name__)
 
 class ERTrainer(MemoryTrainer):
     # Experience Replay by Riemer et al.
+    def __init__(self, cfg):
+        cfg.defrost()
+        cfg.SOLVER.MAX_ITER = cfg.SOLVER.MAX_ITER // 2
+        cfg.SOLVER.STEPS = [x // 2 for x in cfg.SOLVER.STEPS]
+        super().__init__(cfg)
 
     def step(self, mem_data, novel_data):
         assert self.model.training, f"[{self.__class__}] model was changed to eval mode!"
