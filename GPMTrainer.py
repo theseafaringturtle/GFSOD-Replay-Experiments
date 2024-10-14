@@ -58,9 +58,9 @@ def reduce_dict(input_dict, average=True):
 class FasterRCNNFeatureMap(FeatureMap):
     def __init__(self, multi_gpu=False, batch_size: int = 8):
         super().__init__()
-        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(23)] + \
-                           [f'backbone.res4.{i}.conv2' for i in range(23)] + \
-                           [f'backbone.res4.{i}.conv3' for i in range(23)] + ['proposal_generator.rpn_head.conv']
+        self.layer_names = [f'backbone.res4.{i}.conv1' for i in range(13)] + \
+                           [f'backbone.res4.{i}.conv2' for i in range(13)] + \
+                           [f'backbone.res4.{i}.conv3' for i in range(13)] + ['proposal_generator.rpn_head.conv']
         self.layer_names = sorted(self.layer_names)
         # Workaround for documented behaviour: https://github.com/pytorch/pytorch/issues/9176
         if multi_gpu:
@@ -198,17 +198,17 @@ class GPMTrainer(MemoryTrainer):
         # Make sure at least y instances are predicted through RPN, otherwise number of samples passing through ROI heads will be 0
         roi_activations = 0
         min_activations = min(self.model.fmap.samples.values())
-        num_act_iterations = 0
-        iterator = next(self.get_all_fs_base_samples())
-        while (num_images_seen < min_activations or roi_activations < min_activations) and num_act_iterations < 200:
-            logger.debug(f"{roi_activations}/{min_activations} activations found, continuing")
-            try:
-                mem_sample = next(iterator)[0]
-            except StopIteration:
-                raise StopIteration("Error: reached the end of the dataset without extracting relevant proposals")
-            example_out = self.model([mem_sample])
-            num_images_seen += len(mem_sample)
+        for mem_samples in self.get_all_fs_base_samples():
+            example_out = self.model(mem_samples)
+            num_images_seen += len(mem_samples)
             for example_image_results in example_out:
                 roi_activations += len(example_image_results['instances'])
+            if (num_images_seen >= min_activations and roi_activations >= min_activations):
+                break
+            logger.debug(f"{num_images_seen}/{min_activations} image activations found")
+            logger.debug(f"{roi_activations}/{min_activations} RoI activations found")
+        # This check could be changed, since we're not using this on RoI layers
+        if roi_activations < min_activations:
+            raise Exception(f"Could not get enough RoI activations: {roi_activations}/{min_activations}")
         clock_end_inf = time.perf_counter()
         logger.debug(f"Representation inference time: {clock_end_inf - clock_start}")

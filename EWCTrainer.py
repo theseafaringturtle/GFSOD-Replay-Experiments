@@ -22,7 +22,7 @@ class EWCTrainer(MemoryTrainer):
         # Memory only used once after base training to compute Fisher Information Matrix
         self.fisher_dict = {}
         self.optpar_dict = {}
-        self.ewc_lambda = 0.4
+        self.ewc_lambda = 0.1
 
     def resume_or_load(self, resume=True):
         # Load checkpoint
