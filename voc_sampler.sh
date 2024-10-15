@@ -30,4 +30,4 @@ ZIP_NAME+="_rng${RNGSEED}"
 
 zip -r "$ZIP_NAME.zip" datasets/vocsplit/seed3?
 mkdir -p voc_splits
-mv $ZIP_NAME voc_splits
+mv "$ZIP_NAME.zip" voc_splits

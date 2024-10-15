@@ -29,4 +29,4 @@ ZIP_NAME+="_rng${RNGSEED}"
 
 zip -r "$ZIP_NAME.zip" datasets/cocosplit/seed1?
 mkdir -p coco_splits
-mv $ZIP_NAME coco_splits
+mv "$ZIP_NAME.zip" coco_splits
