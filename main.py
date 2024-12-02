@@ -12,6 +12,7 @@ from CFATrainer import CFATrainer
 from DeFRCNTrainer import DeFRCNTrainer
 from EWCTrainer import EWCTrainer
 from GPMTrainer import GPMTrainer
+from MEGA1Trainer import MEGA1Trainer
 from MEGA2Trainer import MEGA2Trainer
 from MemoryTrainer import MemoryTrainer
 from ERTrainer import ERTrainer
