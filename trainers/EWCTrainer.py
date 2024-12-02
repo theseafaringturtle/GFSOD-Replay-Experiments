@@ -8,7 +8,7 @@ from detectron2.utils.events import EventStorage
 from detectron2.utils import comm
 import torch.distributed as dist
 
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
 

@@ -11,7 +11,7 @@ from detectron2.utils.comm import get_world_size
 from detectron2.utils.events import get_event_storage
 from torch import Tensor
 
-from DeFRCNTrainer import DeFRCNTrainer
+from .DeFRCNTrainer import DeFRCNTrainer
 
 
 class MemoryTrainer(DeFRCNTrainer):

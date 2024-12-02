@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from scipy.optimize import minimize_scalar
 
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 
 class CAGTrainer(MemoryTrainer):

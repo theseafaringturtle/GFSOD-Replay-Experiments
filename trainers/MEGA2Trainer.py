@@ -1,7 +1,7 @@
 import torch
 import math
 
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 
 class MEGA2Trainer(MemoryTrainer):

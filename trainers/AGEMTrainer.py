@@ -1,4 +1,4 @@
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 
 class AGEMTrainer(MemoryTrainer):

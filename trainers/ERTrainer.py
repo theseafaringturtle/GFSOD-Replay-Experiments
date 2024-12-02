@@ -1,6 +1,6 @@
 import logging
 
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
 

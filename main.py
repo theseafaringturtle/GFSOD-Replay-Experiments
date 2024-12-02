@@ -1,22 +1,11 @@
 import logging
 import os
-import re
 
 from detectron2.utils import comm
 from detectron2.engine import launch
 from detectron2.checkpoint import DetectionCheckpointer
 
-from AGEMTrainer import AGEMTrainer
-from CFALTrainer import CFALTrainer
-from CFATrainer import CFATrainer
-from DeFRCNTrainer import DeFRCNTrainer
-from EWCTrainer import EWCTrainer
-from GPMTrainer import GPMTrainer
-from MEGA1Trainer import MEGA1Trainer
-from MEGA2Trainer import MEGA2Trainer
-from MemoryTrainer import MemoryTrainer
-from ERTrainer import ERTrainer
-from CAGTrainer import CAGTrainer
+import trainers
 from defrcn.config import get_cfg, set_global_cfg
 from defrcn.evaluation import verify_results
 from defrcn.engine import default_argument_parser, default_setup
@@ -24,6 +13,7 @@ from defrcn.engine import default_argument_parser, default_setup
 import torch
 
 # Determinism
+
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -65,9 +55,9 @@ def setup(args):
 def main(args):
     cfg = setup(args)
     cfg.defrost()
-    TrainerClass = globals()[cfg.TRAINER]
-    # Using DeFRCNTrainer as superclass for all trainers. Not strictly required.
-    assert issubclass(TrainerClass, DeFRCNTrainer)
+    TrainerClass = getattr(trainers, cfg.TRAINER)
+    # Using DeFRCNTrainer as superclass for all trainers. This could be removed if necessary.
+    assert issubclass(TrainerClass, trainers.DeFRCNTrainer)
 
     cfg.freeze()
     if args.eval_only:

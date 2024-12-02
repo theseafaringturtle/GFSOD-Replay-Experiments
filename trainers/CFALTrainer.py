@@ -1,6 +1,6 @@
 import torch
 
-from MemoryTrainer import MemoryTrainer
+from .MemoryTrainer import MemoryTrainer
 
 
 class CFALTrainer(MemoryTrainer):

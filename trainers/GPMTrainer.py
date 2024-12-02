@@ -15,10 +15,10 @@ from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.hooks import RemovableHandle
 import torch.distributed as dist
-from DeFRCNTrainer import DeFRCNTrainer
-from GPM import FeatureMap, get_representation_matrix, update_GPM, register_feature_map_hooks, \
+from .GPM import FeatureMap, get_representation_matrix, update_GPM, register_feature_map_hooks, \
     determine_conv_output_sizes
-from MemoryTrainer import MemoryTrainer
+
+from .MemoryTrainer import MemoryTrainer
 
 logger = logging.getLogger("defrcn").getChild(__name__)
 
@@ -94,7 +94,7 @@ class GPMTrainer(MemoryTrainer):
     # Adapted from Gradient Projection Memory by Saha et al.
 
     def cache_proj_matrix(self, features, save_name: str):
-        os.makedirs("./gpm_features/", exist_ok=True)
+        os.makedirs("../gpm_features/", exist_ok=True)
         file_name = f"./gpm_features/{save_name}_gpm.pickle"
         if os.path.exists(file_name):
             logger.info("Overwriting " + file_name)
