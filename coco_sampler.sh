@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if (($# != 1)); then
+if [ $# -eq 0 ] || [ "$1" = "-h" ]; then
   echo >&2 "Usage: bash coco_sampler.sh <exp_name> -s <sample pool size> -o <sample out size> -s <sampler class> -r <rng>"
   exit
 fi

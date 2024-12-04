@@ -20,7 +20,9 @@ logger = logging.getLogger("defrcn").getChild(__name__)
 class ProtoSampler(BaseFeatureSampler):
 
     def __init__(self, cfg):
-        super(BaseFeatureSampler, self).__init__(cfg)
+        super().__init__(cfg)
+        self.sample_roi_features = {}  # file_name to feature tensor
+        self.sample_roi_labels = {}  # file_name to feature labels
         self.all_features = []
         self.all_labels = []
 

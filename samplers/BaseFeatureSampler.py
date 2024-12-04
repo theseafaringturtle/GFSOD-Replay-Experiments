@@ -10,8 +10,6 @@ class BaseFeatureSampler(BaseSampler):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.sample_roi_features = {}  # file_name to feature tensor
-        self.sample_roi_labels = {}  # file_name to feature labels
 
     def extract_roi_features(self, img, boxes):
         mean = torch.tensor([0.406, 0.456, 0.485]).reshape((3, 1, 1)).to(self.device)

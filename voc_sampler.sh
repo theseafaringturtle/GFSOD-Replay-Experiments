@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if (($# != 2)); then
+if [ $# -eq 0 ] || [ "$1" = "-h" ]; then
   echo >&2 "Usage: bash voc_sampler.sh <exp_name> <class split> -s <sample pool size> -o <sample out size> -s <sampler class> -r <rng>"
   exit
 fi
