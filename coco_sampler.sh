@@ -37,7 +37,7 @@ for ((i = 0; i < 10; i++)); do
   python sampler.py --num-gpus 1 --config-file configs/coco/defrcn_det_r101_base.yaml \
     --sample_pool_size=$SAMPLE_POOL_SIZE --sample_out_size="$SAMPLE_OUT_SIZE" --sampler=$SAMPLER \
     --prev_dataseed $i --new_dataseed $((10 + i)) \
-    --opts OUTPUT_DIR sampler_logs/coco/seed$((10 + i)) TEST.PCB_MODELPATH "./ImageNetPretrained/torchvision/resnet101-5d3b4d8f.pth" \
+    --opts OUTPUT_DIR sampler_logs/coco/${EXP_NAME}/seed$((10 + i)) TEST.PCB_MODELPATH "./ImageNetPretrained/torchvision/resnet101-5d3b4d8f.pth" \
     SEED $RNGSEED
   if [ $? != 0 ]; then
     echo "Interrupting script due to last error" 1>&2
