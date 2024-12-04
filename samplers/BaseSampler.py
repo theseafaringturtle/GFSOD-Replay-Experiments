@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import shutil
 import time
@@ -32,6 +33,11 @@ class BaseSampler(metaclass=ABCMeta):
                                 range(cfg.MODEL.ROI_HEADS.NUM_CLASSES)}  # class_id to instance_count
         self.imagenet_model = self.build_model()
         self.roi_pooler = ROIPooler(output_size=(1, 1), scales=(1 / 32,), sampling_ratio=(0), pooler_type="ROIAlignV2")
+
+        # Max Proportion of extra base instances tolerated across pool
+        self.BASE_INSTANCE_LIMIT_PROP = 4/1
+        # Max Proportion of instances tolerated per sample w.r.t size of pool, 0.1 = any sample can't contribute more than 10%.
+        self.BASE_PER_SAMPLE_LIMIT_PROP = 0.05
 
     def build_model(self):
         logger.info("Loading ImageNet Pre-train Model from {}".format(self.cfg.TEST.PCB_MODELPATH))
@@ -73,7 +79,8 @@ class BaseSampler(metaclass=ABCMeta):
             has_req_classes = False
             has_too_many_instances = False
             # For logging
-            filled_classes = []
+            filled_classes = set()
+            newly_filled_classes = set()
             # Count unique labels
             unique_classes, unique_counts = gt_classes.unique(return_counts=True)
             for i, class_id in enumerate(unique_classes):
@@ -84,11 +91,11 @@ class BaseSampler(metaclass=ABCMeta):
                 if current_class_samples < req_pool_size:
                     has_req_classes = True
                     if current_class_samples + unique_counts[i] >= req_pool_size:
-                        filled_classes.append(class_id)
+                        newly_filled_classes.add(class_id)
                 # Instance number checks
                 # Only allow a 50% overshoot for the pool, and it should not contribute more than 20% to the instances of the class' pool
-                if current_class_instances + unique_counts[i] > req_pool_size * 1.5 \
-                        or unique_counts[i] > req_pool_size * 0.2:
+                if current_class_instances + unique_counts[i] > req_pool_size * self.BASE_INSTANCE_LIMIT_PROP \
+                        or unique_counts[i] > math.ceil(req_pool_size * self.BASE_PER_SAMPLE_LIMIT_PROP):
                     has_too_many_instances = True
             if not has_req_classes or has_too_many_instances:
                 continue
@@ -97,8 +104,11 @@ class BaseSampler(metaclass=ABCMeta):
                 for i, class_id in enumerate(unique_classes):
                     self.class_samples[int(class_id)].add(file_name)
                     self.class_instances[int(class_id)] += unique_counts[i]
-                for class_id in filled_classes:
-                    logger.info(f"Sample pool for {self.base_class_id_to_name(class_id)} has been filled")
+                for class_id in newly_filled_classes:
+                    if class_id not in filled_classes:
+                        filled_classes.add(class_id)
+                        logger.info(f"Sample pool for {self.base_class_id_to_name(class_id)} has been filled")
+                    newly_filled_classes.clear()
                 self.process_image_entry(inputs[0])
 
     @abstractmethod
