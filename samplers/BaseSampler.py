@@ -65,6 +65,10 @@ class BaseSampler(metaclass=ABCMeta):
         memory_loader = build_detection_train_loader(memory_cfg)
         memory_iter = iter(memory_loader)
 
+        # For logging
+        filled_classes = set()
+        newly_filled_classes = set()
+
         for inputs in memory_iter:
             assert len(inputs) == 1
 
@@ -78,9 +82,7 @@ class BaseSampler(metaclass=ABCMeta):
             # For checks
             has_req_classes = False
             has_too_many_instances = False
-            # For logging
-            filled_classes = set()
-            newly_filled_classes = set()
+
             # Count unique labels
             unique_classes, unique_counts = gt_classes.unique(return_counts=True)
             for i, class_id in enumerate(unique_classes):
@@ -91,7 +93,7 @@ class BaseSampler(metaclass=ABCMeta):
                 if current_class_samples < req_pool_size:
                     has_req_classes = True
                     if current_class_samples + unique_counts[i] >= req_pool_size:
-                        newly_filled_classes.add(class_id)
+                        newly_filled_classes.add(int(class_id))
                 # Instance number checks
                 # Only allow a 50% overshoot for the pool, and it should not contribute more than 20% to the instances of the class' pool
                 if current_class_instances + unique_counts[i] > req_pool_size * self.BASE_INSTANCE_LIMIT_PROP \
@@ -108,7 +110,7 @@ class BaseSampler(metaclass=ABCMeta):
                     if class_id not in filled_classes:
                         filled_classes.add(class_id)
                         logger.info(f"Sample pool for {self.base_class_id_to_name(class_id)} has been filled")
-                    newly_filled_classes.clear()
+                newly_filled_classes.clear()
                 self.process_image_entry(inputs[0])
 
     @abstractmethod
