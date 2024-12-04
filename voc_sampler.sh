@@ -1,12 +1,9 @@
 #!/bin/bash
 
 if [ $# -eq 0 ] || [ "$1" = "-h" ]; then
-  echo >&2 "Usage: bash voc_sampler.sh <exp_name> <class split> -s <sample pool size> -o <sample out size> -s <sampler class> -r <rng>"
+  echo >&2 "Usage: bash voc_sampler.sh -s<sample pool size> -o<sample out size> -s<sampler class> -r<rng> <exp_name> <class split>"
   exit
 fi
-
-EXP_NAME=$1
-VOC_CLASS_SPLIT=$2
 
 SAMPLE_POOL_SIZE=100
 SAMPLE_OUT_SIZE="1 5 10"
@@ -29,7 +26,11 @@ while getopts ":p:o:s:r:" opt; do
     exit 1
     ;;
   esac
+  shift
 done
+
+EXP_NAME=$1
+VOC_CLASS_SPLIT=$2
 
 for ((i = 0; i < 10; i++)); do
   python sampler.py --num-gpus 1 --config-file configs/voc/defrcn_det_r101_base${VOC_CLASS_SPLIT}.yaml \

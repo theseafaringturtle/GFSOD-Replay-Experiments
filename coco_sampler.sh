@@ -1,11 +1,9 @@
 #!/bin/bash
 
 if [ $# -eq 0 ] || [ "$1" = "-h" ]; then
-  echo >&2 "Usage: bash coco_sampler.sh <exp_name> -s <sample pool size> -o <sample out size> -s <sampler class> -r <rng>"
+  echo >&2 "Usage: bash coco_sampler.sh -s<sample pool size> -o<sample out size> -s<sampler class> -r<rng> <exp_name>"
   exit
 fi
-
-EXP_NAME=$1
 
 # Getopt reset
 OPTIND=1
@@ -31,7 +29,10 @@ while getopts ":p:o:s:r:" opt; do
     exit 1
     ;;
   esac
+  shift
 done
+
+EXP_NAME=$1
 
 for ((i = 0; i < 10; i++)); do
   python sampler.py --num-gpus 1 --config-file configs/coco/defrcn_det_r101_base.yaml \
