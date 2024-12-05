@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import numpy as np
 import torch
 from detectron2.structures import ImageList
 
@@ -12,6 +13,7 @@ class BaseFeatureSampler(BaseSampler):
         super().__init__(cfg)
 
     def extract_roi_features(self, img, boxes):
+        """This function is the same as in DeFRCN's calibration layer"""
         mean = torch.tensor([0.406, 0.456, 0.485]).reshape((3, 1, 1)).to(self.device)
         std = torch.tensor([[0.225, 0.224, 0.229]]).reshape((3, 1, 1)).to(self.device)
 
@@ -40,9 +42,12 @@ class BaseFeatureSampler(BaseSampler):
         avg_features.scatter_add_(0, indices.unsqueeze(1).expand(-1, features.size(1)), features)
 
         # Count occurrences of each label
-        label_counts = torch.bincount(indices)
+        label_counts: np.array = np.bincount(indices.cpu().numpy())
+        label_counts = np.expand_dims(label_counts, axis=1)
 
         # Divide summed features by label counts to get averages
-        avg_features /= label_counts.float().unsqueeze(1)
+        avg_features = avg_features.cpu()
+        avg_features /= label_counts
+        avg_features = avg_features.to(features.device)
 
         return avg_features, uniq_labels
