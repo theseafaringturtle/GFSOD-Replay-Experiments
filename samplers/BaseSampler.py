@@ -2,16 +2,18 @@ import json
 import logging
 import math
 import os
+import random
 import shutil
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 import torch
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.data import MetadataCatalog
 
-from defrcn.dataloader import build_detection_train_loader
+from defrcn.dataloader import build_detection_train_loader, get_detection_dataset_dicts, DatasetMapper
+from defrcn.dataloader.finite_sampler import FiniteTrainingSampler
 from defrcn.evaluation.archs import resnet101
 from samplers.utils import time_perf
 
@@ -35,7 +37,7 @@ class BaseSampler(metaclass=ABCMeta):
         self.roi_pooler = ROIPooler(output_size=(1, 1), scales=(1 / 32,), sampling_ratio=(0), pooler_type="ROIAlignV2")
 
         # Max Proportion of extra base instances tolerated across pool
-        self.BASE_INSTANCE_LIMIT_PROP = 3/1
+        self.BASE_INSTANCE_LIMIT_PROP = 3 / 1
         # Max Proportion of instances tolerated per sample w.r.t size of pool, 0.1 = any sample can't contribute more than 10%.
         self.BASE_PER_SAMPLE_LIMIT_PROP = 0.05
 
@@ -55,63 +57,102 @@ class BaseSampler(metaclass=ABCMeta):
     def gather_sample_pool(self, req_pool_size: int):
         """Load data and call process_image_entry on each item"""
         logger.info("Gathering samples...")
-        # Adapted from DeFRCN's PCB code, but using loader for shuffling.
-
-        memory_cfg = self.cfg.clone()
-        memory_cfg.defrost()
-        memory_cfg.DATALOADER.SAMPLER_TRAIN = "FiniteTrainingSampler"
-        # To obtain 1 image per GPU
-        memory_cfg.SOLVER.IMS_PER_BATCH = 1
-        memory_loader = build_detection_train_loader(memory_cfg)
-        memory_iter = iter(memory_loader)
+        # Section adapted from class instance histogram code in dataloader/build.py
+        # Get class IDs and how many total instances we have per class across dataset
+        dataset: List[Dict] = get_detection_dataset_dicts(self.cfg.DATASETS.TRAIN)
+        class_ids = set()
+        for sample in dataset:
+            sample_ids = [anno['category_id'] for anno in sample['annotations']]
+            for sample_id in sample_ids:
+                class_ids.add(sample_id)
+        class_ids = sorted(list(class_ids))
+        # List by class index -> List of entries -> Dict entries
+        dataset_class_samples: List[List[Dict]] = [[] for cls_id in
+                                                   class_ids]  # class_id to [file_name]
+        dataset_class_instances = {cls_id: 0 for cls_id in
+                                   class_ids}  # class_id to instance_count
+        for entry in dataset:
+            annos = entry["annotations"]
+            classes = [x["category_id"] for x in annos if not x.get("iscrowd", 0)]
+            classes = [class_ids.index(cat_id) for cat_id in classes]
+            for class_id in set(classes):
+                dataset_class_samples[class_id].append(entry)
+                dataset_class_instances[class_id] += classes.count(class_id)
+        for cid in class_ids:
+            # random.shuffle()
+            print(f"Name: {self.base_class_id_to_name(cid)} \t Instances: {dataset_class_instances[cid]}")
 
         # For logging
         filled_classes = set()
         newly_filled_classes = set()
 
-        for inputs in memory_iter:
-            assert len(inputs) == 1
-
+        # Start from classes with the fewest instances
+        ranked_class_ids = class_ids
+        ranked_class_ids.sort(key=lambda cid: dataset_class_instances[cid])
+        for class_id in ranked_class_ids:
             # We have enough samples to start ranking them, stop going through dataset
-            if all([len(v) >= req_pool_size for k, v in self.class_samples.items()]):
-                break
-
-            file_name = inputs[0]['file_name']
-            gt_classes = inputs[0]['instances'].get("gt_classes")
-
-            # For checks
-            has_req_classes = False
-            has_too_many_instances = False
-
-            # Count unique labels
-            unique_classes, unique_counts = gt_classes.unique(return_counts=True)
-            for i, class_id in enumerate(unique_classes):
-                # Take note of the number of samples we've gathered for that class
-                current_class_samples = len(self.class_samples[int(class_id)])
-                current_class_instances = self.class_instances[int(class_id)]
-                # Whether sample contains any classes we need
-                if current_class_samples < req_pool_size:
-                    has_req_classes = True
-                    if current_class_samples + unique_counts[i] >= req_pool_size:
-                        newly_filled_classes.add(int(class_id))
-                # Instance number checks
-                # Only allow a 300% overshoot for the pool, and it should not contribute more than 5% to the instances of the class' pool
-                if current_class_instances + unique_counts[i] > req_pool_size * self.BASE_INSTANCE_LIMIT_PROP \
-                        or unique_counts[i] > math.ceil(req_pool_size * self.BASE_PER_SAMPLE_LIMIT_PROP):
-                    has_too_many_instances = True
-            if not has_req_classes or has_too_many_instances:
+            if len(self.class_samples[class_id]) >= req_pool_size:
                 continue
-            else:
-                # Add to pool
+
+            for entry in dataset_class_samples[class_id]:
+                file_name = entry['file_name']
+                gt_classes = torch.IntTensor(
+                    [e["category_id"] for e in entry["annotations"] if not e.get("iscrowd", 0)])
+
+                # For checks
+                has_req_classes = False
+                has_too_many_instances = False
+
+                # Count unique labels
+                unique_classes, unique_counts = gt_classes.unique(return_counts=True)
                 for i, class_id in enumerate(unique_classes):
-                    self.class_samples[int(class_id)].add(file_name)
-                    self.class_instances[int(class_id)] += unique_counts[i]
-                for class_id in newly_filled_classes:
-                    if class_id not in filled_classes:
-                        filled_classes.add(class_id)
-                        logger.info(f"Sample pool for {self.base_class_id_to_name(class_id)} has been filled")
-                newly_filled_classes.clear()
-                self.process_image_entry(inputs[0])
+                    # Take note of the number of samples we've gathered for that class
+                    current_class_samples = len(self.class_samples[int(class_id)])
+                    current_class_instances = self.class_instances[int(class_id)]
+                    # Whether sample contains any classes we need
+                    if current_class_samples < req_pool_size:
+                        has_req_classes = True
+                        if current_class_samples + unique_counts[i] >= req_pool_size:
+                            newly_filled_classes.add(int(class_id))
+                    # Instance number checks
+                    # Only allow a 300% overshoot for the pool, and it should not contribute more than 5% to the instances of the class' pool
+                    if current_class_instances + unique_counts[i] > req_pool_size * self.BASE_INSTANCE_LIMIT_PROP \
+                            or unique_counts[i] > math.ceil(req_pool_size * self.BASE_PER_SAMPLE_LIMIT_PROP):
+                        has_too_many_instances = True
+                if not has_req_classes or has_too_many_instances:
+                    continue
+                else:
+                    # Add to pool
+                    for i, class_id in enumerate(unique_classes):
+                        self.class_samples[int(class_id)].add(file_name)
+                        self.class_instances[int(class_id)] += unique_counts[i]
+                    for class_id in newly_filled_classes:
+                        if class_id not in filled_classes:
+                            filled_classes.add(class_id)
+                            logger.info(f"Sample pool for {self.base_class_id_to_name(class_id)} has been filled")
+                            if len(filled_classes) > len(self.class_samples.keys()) * 0.8:
+                                self.BASE_INSTANCE_LIMIT_PROP = 4 / 1
+                                self.BASE_PER_SAMPLE_LIMIT_PROP = 0.2
+                    newly_filled_classes.clear()
+        # TODO see what changes by skipping dataloader
+        pool_file_names = set()
+        for cid in class_ids:
+            pool_file_names = pool_file_names.union(self.class_samples[cid])
+        pool_dataset = [d for d in dataset if d["file_name"] in pool_file_names]
+        memory_cfg = self.cfg.clone()
+        memory_cfg.defrost()
+        memory_cfg.DATALOADER.SAMPLER_TRAIN = "FiniteTrainingSampler"
+        # To obtain 1 image per GPU
+        memory_cfg.SOLVER.IMS_PER_BATCH = 1
+        mapper = DatasetMapper(memory_cfg, True)
+        sampler = FiniteTrainingSampler(len(pool_dataset))
+        total_batch_size = memory_cfg.SOLVER.IMS_PER_BATCH
+        memory_loader = build_detection_train_loader(pool_dataset, mapper=mapper, sampler=sampler,
+                                                     total_batch_size=total_batch_size)
+        memory_iter = iter(memory_loader)
+        for input in memory_iter:
+            entry = input[0]
+            self.process_image_entry(entry)
 
     @abstractmethod
     def process_image_entry(self, input):

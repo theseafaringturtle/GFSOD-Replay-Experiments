@@ -9,6 +9,8 @@ import os
 import cv2
 import torch
 import logging
+
+from detectron2.structures import Boxes
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 
 from .BaseFeatureSampler import BaseFeatureSampler
