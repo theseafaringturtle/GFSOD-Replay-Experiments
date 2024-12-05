@@ -35,7 +35,7 @@ class BaseSampler(metaclass=ABCMeta):
         self.roi_pooler = ROIPooler(output_size=(1, 1), scales=(1 / 32,), sampling_ratio=(0), pooler_type="ROIAlignV2")
 
         # Max Proportion of extra base instances tolerated across pool
-        self.BASE_INSTANCE_LIMIT_PROP = 4/1
+        self.BASE_INSTANCE_LIMIT_PROP = 3/1
         # Max Proportion of instances tolerated per sample w.r.t size of pool, 0.1 = any sample can't contribute more than 10%.
         self.BASE_PER_SAMPLE_LIMIT_PROP = 0.05
 
@@ -95,7 +95,7 @@ class BaseSampler(metaclass=ABCMeta):
                     if current_class_samples + unique_counts[i] >= req_pool_size:
                         newly_filled_classes.add(int(class_id))
                 # Instance number checks
-                # Only allow a 50% overshoot for the pool, and it should not contribute more than 20% to the instances of the class' pool
+                # Only allow a 300% overshoot for the pool, and it should not contribute more than 5% to the instances of the class' pool
                 if current_class_instances + unique_counts[i] > req_pool_size * self.BASE_INSTANCE_LIMIT_PROP \
                         or unique_counts[i] > math.ceil(req_pool_size * self.BASE_PER_SAMPLE_LIMIT_PROP):
                     has_too_many_instances = True
