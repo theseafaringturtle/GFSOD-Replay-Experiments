@@ -26,8 +26,9 @@ while getopts ":p:o:s:r:" opt; do
     exit 1
     ;;
   esac
-  shift
 done
+
+shift $((OPTIND-1))
 
 EXP_NAME=$1
 VOC_CLASS_SPLIT=$2
