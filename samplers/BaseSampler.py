@@ -79,8 +79,8 @@ class BaseSampler(metaclass=ABCMeta):
                 dataset_class_samples[class_id].append(entry)
                 dataset_class_instances[class_id] += classes.count(class_id)
         for cid in class_ids:
-            # random.shuffle()
-            print(f"Name: {self.base_class_id_to_name(cid)} \t Instances: {dataset_class_instances[cid]}")
+            random.shuffle(dataset_class_samples[cid])
+            # print(f"Name: {self.base_class_id_to_name(cid)} \t Instances: {dataset_class_instances[cid]}")
 
         # For logging
         filled_classes = set()
