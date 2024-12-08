@@ -71,8 +71,9 @@ class ProtoSampler(BaseFeatureSampler):
         self.prototypes = prototypes_dict
 
     @time_perf(logger)
-    def select_samples(self, samples_needed) -> Dict:
-        samples_per_class = {}
+    def select_samples(self, instances_needed) -> Dict:
+        samples_per_class = {cls_id: [] for cls_id in self.class_samples.keys()}
+        instances_per_class = {cls_id: 0 for cls_id in self.class_samples.keys()}
         for class_name in self.class_samples.keys():
             # same_class_dist = []
             # other_class_dist = []
@@ -98,6 +99,13 @@ class ProtoSampler(BaseFeatureSampler):
                 sim_scores.append(sim_tuple)
             sim_scores.sort(key=lambda tup: tup[1])
             # print(f"Distances: {sim_scores}")
-            samples_per_class[class_name] = [file_name for file_name, dist in sim_scores[:samples_needed]]
+            for file_name, dist in sim_scores:
+                # Have at least one sample, but if other instances already contain that class ignore it
+                samples_per_class[class_name].append(file_name)
+                for label in self.sample_labels[file_name]:
+                    instances_per_class[label] += 1
+                if instances_per_class[class_name] >= instances_needed:
+                    break
+            # samples_per_class[class_name] = [file_name for file_name, dist in sim_scores[:samples_needed]]
         logger.info("Samples have been ranked!")
         return samples_per_class

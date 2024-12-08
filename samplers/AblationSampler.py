@@ -19,9 +19,17 @@ class AblationSampler(BaseSampler):
         pass
 
     @time_perf(logger)
-    def select_samples(self, samples_needed: int) -> Dict:
-        samples_per_class = {}
+    def select_samples(self, instances_needed: int) -> Dict:
+        samples_per_class = {cls_id: [] for cls_id in self.class_samples.keys()}
+        instances_per_class = {cls_id: 0 for cls_id in self.class_samples.keys()}
         for class_name in self.class_samples.keys():
-            samples_per_class[class_name] = list(self.class_samples[class_name])[:samples_needed]
-        logger.info(f"Random {samples_needed} samples returned (ablation)")
+            for file_name in self.class_samples[class_name]:
+                # Have at least one sample, but if other instances already contain that class ignore it
+                samples_per_class[class_name].append(file_name)
+                for label in self.sample_labels[file_name]:
+                    instances_per_class[label] += 1
+                if instances_per_class[class_name] >= instances_needed:
+                    break
+            samples_per_class[class_name] = list(self.class_samples[class_name])[:instances_needed]
+        logger.info(f"Random {instances_needed} samples returned (ablation)")
         return samples_per_class
