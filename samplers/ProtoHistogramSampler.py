@@ -19,8 +19,9 @@ class ProtoHistogramSampler(ProtoSampler):
         self.NUM_BINS = 10
 
     @time_perf(logger)
-    def select_samples(self, samples_needed) -> Dict:
-        samples_per_class = {}
+    def select_samples(self, instances_needed) -> Dict:
+        samples_per_class = {cls_id: [] for cls_id in self.class_samples.keys()}
+        instances_per_class = {cls_id: 0 for cls_id in self.class_samples.keys()}
         for class_name in self.class_samples.keys():
             sim_scores = []
             for file_name in self.class_samples[class_name]:
@@ -47,14 +48,15 @@ class ProtoHistogramSampler(ProtoSampler):
             bin_size = len(sim_scores) // self.NUM_BINS
             histogram_bins = [sim_scores[i * bin_size: (i + 1) * bin_size] for i in range(self.NUM_BINS)]
             # Sample uniformly from histograms
-            selected_samples = []
-            while len(selected_samples) < samples_needed:
+            while instances_per_class[class_name] < instances_needed:
                 for i in range(self.NUM_BINS):
-                    assert len(histogram_bins[i]) > 1, \
+                    assert len(histogram_bins[i]) >= 1, \
                         f"Splitting a pool of {len(self.class_samples[class_name])} into {self.NUM_BINS} bins left bin {i} without samples to draw from"
-                    selected_samples.append(histogram_bins[i].pop(0)[0])
-                    if len(selected_samples) == samples_needed:
+                    file_name = histogram_bins[i].pop(0)[0]
+                    samples_per_class[class_name].append(file_name)
+                    for label in self.sample_labels[file_name]:
+                        instances_per_class[label] += 1
+                    if instances_per_class[class_name] >= instances_needed:
                         break
-            samples_per_class[class_name] = selected_samples
         logger.info("Samples have been ranked!")
         return samples_per_class
