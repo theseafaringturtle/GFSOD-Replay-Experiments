@@ -30,6 +30,5 @@ class AblationSampler(BaseSampler):
                     instances_per_class[label] += 1
                 if instances_per_class[class_name] >= instances_needed:
                     break
-            samples_per_class[class_name] = list(self.class_samples[class_name])[:instances_needed]
         logger.info(f"Random {instances_needed} samples returned (ablation)")
         return samples_per_class
