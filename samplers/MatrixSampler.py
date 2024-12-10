@@ -50,6 +50,10 @@ class MatrixSampler(BaseFeatureSampler):
                 if file_name == other_file_name:
                     entries.append(0.)
                     continue
+                # Copy half of matrix since it's symmetric
+                if dist_matrix[j][i] != np.inf:
+                    dist_matrix[i][j] = dist_matrix[j][i]
+                    continue
                 # non-weighted average
                 distance_scores = [np.linalg.linalg.norm(feature_t - other_feature_t)
                                    for feature_t in feature_tensors for other_feature_t in other_feature_tensors]
