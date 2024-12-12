@@ -4,7 +4,6 @@ from typing import Dict, Union, Any, Tuple
 import cv2
 import torch
 import logging
-from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 
 from .ProtoSampler import ProtoSampler
 from .utils import time_perf
@@ -34,7 +33,7 @@ class ProtoHistogramSampler(ProtoSampler):
                     sample_feature_means[label.item()] = sample_features[sample_labels == label].mean(axis=0)
                 sample_distances = {}
                 for label in sample_feature_means:
-                    dist = euclidean_distances(self.prototypes[label], sample_feature_means[label].unsqueeze(0))
+                    dist = torch.linalg.norm(self.prototypes[label] - sample_feature_means[label]).item()
                     sample_distances[label] = dist
                 # Create a collated similarity score from different labels
                 sim_score = 0.

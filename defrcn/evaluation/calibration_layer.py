@@ -7,8 +7,7 @@ import detectron2
 import numpy as np
 from detectron2.structures import ImageList
 from detectron2.modeling.poolers import ROIPooler
-from sklearn.metrics.pairwise import cosine_similarity
-
+import torch.nn.functional as F
 from defrcn.dataloader import build_detection_test_loader
 from defrcn.evaluation.archs import resnet101
 
@@ -119,8 +118,8 @@ class PrototypicalCalibrationBlock:
             tmp_class = int(dts[0]['instances'].pred_classes[i])
             if tmp_class in self.exclude_cls:
                 continue
-            tmp_cos = cosine_similarity(features[i - ileft].cpu().data.numpy().reshape((1, -1)),
-                                        self.prototypes[tmp_class].cpu().data.numpy())[0][0]
+            tmp_cos = F.cosine_similarity(features[i - ileft].cpu().data.unsqueeze(0),
+                                          self.prototypes[tmp_class]).item()
             dts[0]['instances'].scores[i] = dts[0]['instances'].scores[i] * self.alpha + tmp_cos * (1 - self.alpha)
         return dts
 

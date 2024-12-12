@@ -4,7 +4,6 @@ from typing import Dict, List
 import cv2
 import numpy as np
 import numpy.linalg.linalg
-from sklearn.metrics import euclidean_distances
 from torch import Tensor
 
 from .BaseFeatureSampler import BaseFeatureSampler
