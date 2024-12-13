@@ -10,6 +10,8 @@ __all__ = ["register_meta_voc"]
 
 DATASET_BASE_DIR = 'datasets'
 
+VOC_BASE_INSTANCE_CAP = os.environ.get("VOC_BASE_INSTANCE_CAP", None) == "True"
+
 def load_filtered_voc_instances(
     name: str, dirname: str, split: str, classnames: str
 ):
@@ -51,6 +53,7 @@ def load_filtered_voc_instances(
     if is_shots:
         for cls, fileids_ in fileids.items():
             dicts_ = []
+            offset = 0 # class ID offset, in case we're transposing the IDs of a novel-only set onto 'all'
             for fileid in fileids_:
                 year = "2012" if "_" in fileid else "2007"
                 dirname = os.path.join(DATASET_BASE_DIR, "VOC{}".format(year))
@@ -63,6 +66,12 @@ def load_filtered_voc_instances(
 
                 tree = ET.parse(anno_file)
 
+                # If using a memory-based method, don't start from 0 as we'll later use the both novel and base classes separately for the same head
+                if "novel_mem" in name:
+                    offset = 15
+                else:
+                    offset = 0
+
                 for obj in tree.findall("object"):
                     r = {
                         "file_name": jpeg_file,
@@ -71,7 +80,7 @@ def load_filtered_voc_instances(
                         "width": int(tree.findall("./size/width")[0].text),
                     }
                     cls_ = obj.find("name").text
-                    if cls != cls_:
+                    if cls != cls_ and (classnames.index(cls) + offset >= 15 or VOC_BASE_INSTANCE_CAP):
                         continue
                     bbox = obj.find("bndbox")
                     bbox = [
@@ -81,22 +90,18 @@ def load_filtered_voc_instances(
                     bbox[0] -= 1.0
                     bbox[1] -= 1.0
 
-                    # If using a memory-based method, don't start from 0 as we'll later use the both novel and base classes separately for the same head
-                    if "novel_mem" in name:
-                        offset = 15
-                    else:
-                        offset = 0
-
                     instances = [
                         {
-                            "category_id": classnames.index(cls) + offset,
+                            "category_id": classnames.index(cls_) + offset,
                             "bbox": bbox,
                             "bbox_mode": BoxMode.XYXY_ABS,
                         }
                     ]
                     r["annotations"] = instances
                     dicts_.append(r)
-            if len(dicts_) > int(shot):
+            # Only novel extra instances should be clipped to respect x-shot constraints,
+            # unless we're doing things the old TFA/DeFRCN way, that is clipping base ones too
+            if len(dicts_) > int(shot) and (classnames.index(cls) + offset >= 15 or VOC_BASE_INSTANCE_CAP):
                 dicts_ = np.random.choice(dicts_, int(shot), replace=False)
             dicts.extend(dicts_)
     else:
