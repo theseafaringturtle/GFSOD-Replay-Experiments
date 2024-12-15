@@ -8,15 +8,13 @@ fi
 SAMPLE_POOL_SIZE=100
 SAMPLE_OUT_SIZE="1 5 10"
 SAMPLER="AblationSampler"
-RNGSEED=0
 
 # Parse command line arguments
-while getopts ":p:o:s:r:" opt; do
+while getopts ":p:o:s:" opt; do
   case $opt in
   p) SAMPLE_POOL_SIZE="$OPTARG" ;;
   o) SAMPLE_OUT_SIZE="$OPTARG" ;;
   s) SAMPLER="$OPTARG" ;;
-  r) RNGSEED="$OPTARG" ;;
   \?)
     echo "Invalid option: -$OPTARG" >&2
     exit 1
@@ -38,14 +36,14 @@ for ((i = 0; i < 10; i++)); do
     --sample_pool_size=$SAMPLE_POOL_SIZE --sample_out_size="$SAMPLE_OUT_SIZE" --sampler=$SAMPLER \
     --prev_dataseed $i --new_dataseed $((30 + i)) \
     --opts OUTPUT_DIR sampler_logs/voc/${EXP_NAME}/seed$((30 + i)) TEST.PCB_MODELPATH "./ImageNetPretrained/torchvision/resnet101-5d3b4d8f.pth" \
-    SEED $RNGSEED
+    SEED $i
   if [ $? != 0 ]; then
     echo "Interrupting script due to last error" 1>&2
     break
   fi
 done
 
-ZIP_NAME="voc${VOC_CLASS_SPLIT}_${EXP_NAME}_pool${SAMPLE_POOL_SIZE}_s${SAMPLER}_rng${RNGSEED}"
+ZIP_NAME="voc${VOC_CLASS_SPLIT}_${EXP_NAME}_pool${SAMPLE_POOL_SIZE}_s${SAMPLER}"
 
 zip -r "$ZIP_NAME.zip" datasets/vocsplit/seed3?
 mkdir -p voc_splits
