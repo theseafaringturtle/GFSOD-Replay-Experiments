@@ -250,7 +250,7 @@ class BaseSampler(metaclass=ABCMeta):
                 new_all_cats.append(cat)
 
             # Extract relevant images and annotations in a single pass for all classes
-            base_classes = MetadataCatalog.get(train_set_name).get("base_classes", None)
+            # base_classes = MetadataCatalog.get(train_set_name).get("base_classes", None)
             all_filenames = sum(filenames_per_base_class.values(), [])
             all_filenames = [os.path.basename(f) for f in all_filenames]
             id2img = {}
@@ -281,8 +281,8 @@ class BaseSampler(metaclass=ABCMeta):
             logger.info("Data collated...")
             # Create base files
             for class_id, base_data in new_base_data.items():
-                class_name = self.base_class_id_to_name(class_id)
-                with open(f"{new_seed_dir}/full_box_{samples_needed}shot_{class_name}_trainval.json",
+                base_class_name = self.base_class_id_to_name(class_id)
+                with open(f"{new_seed_dir}/full_box_{samples_needed}shot_{base_class_name}_trainval.json",
                           'w') as json_file:
                     json.dump(base_data, json_file)
             # Copy novel files verbatim
@@ -291,11 +291,11 @@ class BaseSampler(metaclass=ABCMeta):
             if not novel_classes:
                 raise Exception(
                     f"Dataset {train_set_name} has no novel_classes set, check builtin_meta.py for an example on how to set them")
-            for class_name in novel_classes:
-                source = f"{prev_seed_dir}/full_box_{samples_needed}shot_{class_name}_trainval.json"
-                dest = f"{new_seed_dir}/full_box_{samples_needed}shot_{class_name}_trainval.json"
+            for novel_class_name in novel_classes:
+                source = f"{prev_seed_dir}/full_box_{samples_needed}shot_{novel_class_name}_trainval.json"
+                dest = f"{new_seed_dir}/full_box_{samples_needed}shot_{novel_class_name}_trainval.json"
                 shutil.copy(source, dest)
-                logger.info(f"Copied {class_name}")
+                logger.info(f"Copied {novel_class_name}")
         else:
             raise Exception(
                 f"You need to implement data split saving for {train_set_name}, check this function and https://github.com/ucbdrive/few-shot-object-detection/tree/master/datasets")
