@@ -130,7 +130,8 @@ class BaseSampler(metaclass=ABCMeta):
                     filled_classes.add(newly_filled_cid)
                     logger.info(f"Sample pool for {self.base_class_id_to_name(newly_filled_cid)} has been filled")
             newly_filled_classes.clear()
-        # TODO see what changes by skipping dataloader
+        # Just leaving dataloader here in case we decide to run this in parallel and gather tensors
+        # The easiest way would be to set IMS_PER_BATCH = num_gpus and gather dictionaries as part of class method
         logger.info("Finished gathering samples, processing...")
         pool_file_names = set()
         for cid in class_ids:
@@ -241,7 +242,8 @@ class BaseSampler(metaclass=ABCMeta):
                     text_file.write('\n'.join(file_names) + '\n')
         elif 'coco' in train_set_name:
             data_path = "../datasets/cocosplit/datasplit/trainvalno5k.json"
-            data = json.load(open(data_path))
+            with open(data_path, "r") as data_file:
+                data = json.load(data_file)
             logger.info("Loading trainvalno5k.json ...")
             new_all_cats = []
             for cat in data["categories"]:
