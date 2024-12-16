@@ -282,6 +282,10 @@ class BaseSampler(metaclass=ABCMeta):
             # Create base files
             for class_id, base_data in new_base_data.items():
                 base_class_name = self.base_class_id_to_name(class_id)
+                # Oddly enough, if the first file wasn't removed then it wouldn't be properly overwritten by json.dump()
+                # but a truncated part of the old file remained. This was an intermittent but reproducible issue on the hpc
+                if os.path.exists(f"{new_seed_dir}/full_box_{samples_needed}shot_{base_class_name}_trainval.json"):
+                    os.remove(f"{new_seed_dir}/full_box_{samples_needed}shot_{base_class_name}_trainval.json",)
                 with open(f"{new_seed_dir}/full_box_{samples_needed}shot_{base_class_name}_trainval.json",
                           'w') as json_file:
                     json.dump(base_data, json_file)
