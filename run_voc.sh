@@ -17,10 +17,12 @@ then
 python3 main.py --num-gpus $NUM_GPUS --config-file configs/voc/defrcn_det_r101_base${SPLIT_ID}.yaml     \
     --opts MODEL.WEIGHTS ${IMAGENET_PRETRAIN}                                                   \
            OUTPUT_DIR ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
+    BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth
 else
   echo "Skipping base pretraining"
   mkdir -p ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
-  cp ./model_base_voc/model_final${SPLIT_ID}.pth ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth
+#  cp ./model_base_voc/model_final${SPLIT_ID}.pth ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth
+  BASE_WEIGHT=./model_base_voc/model_final${SPLIT_ID}.pth
 fi
 
 # ----------------------------- Model Preparation --------------------------------- #
@@ -30,15 +32,17 @@ then
   if [[ $FINETUNE != true ]]; then echo "FINETUNE is not true, are you sure you want to use the pretrained surgery model?"; fi
   echo "Using provided model_reset_surgery"
   mkdir -p ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
-  cp ./model_base_voc/model_reset_surgery${SPLIT_ID}.pth ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
+#  cp ./model_base_voc/model_reset_surgery${SPLIT_ID}.pth ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
+  BASE_WEIGHT=./model_base_voc/model_reset_surgery${SPLIT_ID}.pth
 else
   # Perform it yourself, though weight initialisation random seed for the classifier will not be the same as original experiment
   echo "Creating model_reset_surgery.pth"
   python3 tools/model_surgery.py --dataset voc --method randinit                                \
       --src-path ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_final.pth                    \
       --save-dir ${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}
+  BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
 fi
-BASE_WEIGHT=${SAVE_DIR}/defrcn_det_r101_base${SPLIT_ID}/model_reset_surgery.pth
+
 
 
 # ------------------------------ G-FSOD novel Fine-tuning, 15+5 classes ------------------------------- #
