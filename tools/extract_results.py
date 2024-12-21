@@ -78,7 +78,8 @@ def main():
 
         results_np = np.array(results)
         avg = np.mean(results_np, axis=0).tolist()
-        cid = [1.96 * s / math.sqrt(results_np.shape[0]) for s in np.std(results_np, axis=0)]
+        # Using T dist with ddof=1 since we don't know the true mean, so std will be an underestimate
+        cid = [2.262 * s / math.sqrt(results_np.shape[0]) for s in np.std(results_np, axis=0, ddof=1)]
         results.append(['μ'] + avg[1:])
         results.append(['c'] + cid[1:])
 
