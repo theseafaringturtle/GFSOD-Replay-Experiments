@@ -28,7 +28,7 @@ class MatrixSampler(BaseFeatureSampler):
         gt_classes = torch.tensor([anno["category_id"] for anno in entry["annotations"]])
 
         img = cv2.imread(file_name)  # BGR
-        boxes = Boxes(torch.tensor([anno["bbox"] for anno in entry["annotations"]]))
+        boxes = Boxes(torch.tensor([anno["bbox"] for anno in entry["annotations"]]).to(self.device))
 
         # extract roi features
         _features = self.extract_roi_features(img, [boxes])  # use list since it expects a batch

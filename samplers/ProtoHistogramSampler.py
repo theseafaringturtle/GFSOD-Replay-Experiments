@@ -61,5 +61,4 @@ class ProtoHistogramSampler(ProtoSampler):
                     if instances_per_class[class_id] >= instances_needed:
                         break
         logger.info("Samples have been ranked!")
-        print(samples_per_class)
         return samples_per_class
