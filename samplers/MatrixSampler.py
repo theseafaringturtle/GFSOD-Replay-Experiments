@@ -4,6 +4,8 @@ from typing import Dict, List
 import cv2
 import numpy as np
 import numpy.linalg.linalg
+import torch
+from detectron2.structures import Boxes
 from torch import Tensor
 
 from .BaseFeatureSampler import BaseFeatureSampler
@@ -20,16 +22,13 @@ class MatrixSampler(BaseFeatureSampler):
         self.sample_roi_labels = {}  # file_name to feature labels
         self.NUM_BINS = 10
 
-    def process_image_entry(self, input):
+    def process_image_entry(self, entry):
         # Load support images and gt-boxes. Same as PCB.
-        file_name = input['file_name']
-        gt_classes = input['instances'].get("gt_classes")
+        file_name = entry['file_name']
+        gt_classes = torch.tensor([anno["category_id"] for anno in entry["annotations"]])
 
         img = cv2.imread(file_name)  # BGR
-        img_h, img_w = img.shape[0], img.shape[1]
-        ratio = img_h / input['instances'].image_size[0]
-        input['instances'].gt_boxes.tensor = input['instances'].gt_boxes.tensor * ratio
-        boxes = input["instances"].gt_boxes.clone().to(self.device)
+        boxes = Boxes(torch.tensor([anno["bbox"] for anno in entry["annotations"]]))
 
         # extract roi features
         _features = self.extract_roi_features(img, [boxes])  # use list since it expects a batch

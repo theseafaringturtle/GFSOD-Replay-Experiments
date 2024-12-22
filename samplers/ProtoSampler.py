@@ -10,6 +10,7 @@ import cv2
 import torch
 import logging
 
+from detectron2.structures import Boxes
 
 from .BaseFeatureSampler import BaseFeatureSampler
 from .utils import time_perf
@@ -26,16 +27,13 @@ class ProtoSampler(BaseFeatureSampler):
         self.all_features = []
         self.all_labels = []
 
-    def process_image_entry(self, input):
+    def process_image_entry(self, entry):
         # Load support images and gt-boxes. Same as PCB.
-        file_name = input['file_name']
-        gt_classes = input['instances'].get("gt_classes")
+        file_name = entry['file_name']
+        gt_classes = torch.tensor([anno["category_id"] for anno in entry["annotations"]])
 
         img = cv2.imread(file_name)  # BGR
-        img_h, img_w = img.shape[0], img.shape[1]
-        ratio = img_h / input['instances'].image_size[0]
-        input['instances'].gt_boxes.tensor = input['instances'].gt_boxes.tensor * ratio
-        boxes = input["instances"].gt_boxes.clone().to(self.device)
+        boxes = Boxes(torch.tensor([anno["bbox"] for anno in entry["annotations"]]))
 
         # extract roi features
         _features = self.extract_roi_features(img, [boxes])  # use list since it expects a batch
@@ -72,11 +70,11 @@ class ProtoSampler(BaseFeatureSampler):
     def select_samples(self, instances_needed) -> Dict:
         samples_per_class = {cls_id: [] for cls_id in self.class_samples.keys()}
         instances_per_class = {cls_id: 0 for cls_id in self.class_samples.keys()}
-        for class_name in self.class_samples.keys():
+        for class_id in self.class_samples.keys():
             # same_class_dist = []
             # other_class_dist = []
             sim_scores = []
-            for file_name in self.class_samples[class_name]:
+            for file_name in self.class_samples[class_id]:
                 sample_features = self.sample_roi_features[file_name]
                 # When there are multiple RoI box features in an image, can't average them since they might have different labels
                 # Average the ones with the same label instead.
@@ -91,7 +89,7 @@ class ProtoSampler(BaseFeatureSampler):
                 # Create a collated similarity score from different labels
                 sim_score = 0.
                 for label in sample_distances:
-                    if label == class_name:
+                    if label == class_id:
                         sim_score += sample_distances[label]
                 sim_tuple = (file_name, sim_score)
                 sim_scores.append(sim_tuple)
@@ -99,11 +97,11 @@ class ProtoSampler(BaseFeatureSampler):
             # print(f"Distances: {sim_scores}")
             for file_name, dist in sim_scores:
                 # Have at least one sample, but if other instances already contain that class ignore it
-                samples_per_class[class_name].append(file_name)
+                samples_per_class[class_id].append(file_name)
                 for label in self.sample_labels[file_name]:
                     instances_per_class[label] += 1
-                if instances_per_class[class_name] >= instances_needed:
+                if instances_per_class[class_id] >= instances_needed:
                     break
-            # samples_per_class[class_name] = [file_name for file_name, dist in sim_scores[:samples_needed]]
+            # samples_per_class[class_id] = [file_name for file_name, dist in sim_scores[:samples_needed]]
         logger.info("Samples have been ranked!")
         return samples_per_class

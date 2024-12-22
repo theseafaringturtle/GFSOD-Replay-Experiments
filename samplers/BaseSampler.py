@@ -141,21 +141,10 @@ class BaseSampler(metaclass=ABCMeta):
         for cid in class_ids:
             pool_file_names = pool_file_names.union(self.class_samples[cid])
         pool_dataset = [d for d in dataset if d["file_name"] in pool_file_names]
-        memory_cfg = self.cfg.clone()
-        memory_cfg.defrost()
-        memory_cfg.DATALOADER.SAMPLER_TRAIN = "FiniteTrainingSampler"
-        # To obtain 1 image per GPU
-        memory_cfg.SOLVER.IMS_PER_BATCH = 1
-        mapper = DatasetMapper(memory_cfg, True)
-        sampler = FiniteTrainingSampler(len(pool_dataset))
-        total_batch_size = memory_cfg.SOLVER.IMS_PER_BATCH
-        memory_loader = build_detection_train_loader(pool_dataset, mapper=mapper, sampler=sampler,
-                                                     total_batch_size=total_batch_size)
-        memory_iter = iter(memory_loader)
+
         num_processed = 0
-        for input in memory_iter:
+        for entry in pool_dataset:
             num_processed += 1
-            entry = input[0]
             if num_processed in list(range(0, len(pool_dataset), len(pool_dataset) // 10)):
                 logger.info(f"Samples processed: {round(num_processed / len(pool_dataset) * 100)}%")
             self.process_image_entry(entry)
