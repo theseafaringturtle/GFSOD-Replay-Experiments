@@ -11,6 +11,7 @@ from typing import Dict, Tuple, List
 import torch
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.data import MetadataCatalog
+from detectron2.utils.env import seed_all_rng
 
 from defrcn.dataloader import build_detection_train_loader, get_detection_dataset_dicts, DatasetMapper
 from defrcn.dataloader.finite_sampler import FiniteTrainingSampler
@@ -58,6 +59,8 @@ class BaseSampler(metaclass=ABCMeta):
     def gather_sample_pool(self, req_pool_size: int):
         """Load data and call process_image_entry on each item"""
         logger.info("Gathering samples...")
+        # Ensure starting pool will be the same for same seed
+        seed_all_rng(self.cfg.SEED)
         # Section adapted from class instance histogram code in dataloader/build.py
         # Get class IDs and how many total instances we have per class across dataset
         dataset: List[Dict] = get_detection_dataset_dicts(self.cfg.DATASETS.TRAIN)
@@ -79,6 +82,7 @@ class BaseSampler(metaclass=ABCMeta):
             for instance_cid in set(classes):
                 dataset_class_samples[instance_cid].append(entry)
                 dataset_class_instances[instance_cid] += classes.count(instance_cid)
+
         for cid in class_ids:
             random.shuffle(dataset_class_samples[cid])
             # print(f"Name: {self.base_class_id_to_name(cid)} \t Instances: {dataset_class_instances[cid]}")
