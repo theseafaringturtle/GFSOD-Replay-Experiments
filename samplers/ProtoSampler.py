@@ -71,8 +71,6 @@ class ProtoSampler(BaseFeatureSampler):
         samples_per_class = {cls_id: [] for cls_id in self.class_samples.keys()}
         instances_per_class = {cls_id: 0 for cls_id in self.class_samples.keys()}
         for class_id in self.class_samples.keys():
-            # same_class_dist = []
-            # other_class_dist = []
             sim_scores = []
             for file_name in self.class_samples[class_id]:
                 sample_features = self.sample_roi_features[file_name]
