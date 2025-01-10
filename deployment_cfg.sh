@@ -15,10 +15,13 @@ export FINETUNE=true
 # Whether to use provided model surgery, same folder as model_final.pth
 export PROVIDED_RANDINIT=true
 
+# Change to true for default behaviour (cap all base classes at k instances, discard any additional ones found in base images)
+export VOC_BASE_INSTANCE_CAP=false
+
 # Not recommended if you cannot spare a few hundred MB model for each seed and shot. Best tweak SHOT_LIST or SEED_SPLIT_LIST if using this
 export KEEP_OUTPUTS=false
 # if final, 1 2 3 5 10
-export SHOT_LIST=(1 2 3 5 10)
+export SHOT_LIST=(1 5 10)
 # TFA-derived data splits for few-shot data
 export DATA_SPLIT_LIST=(0 1 2 3 4 5 6 7 8 9)
 # RNG seed to run the experiments with.

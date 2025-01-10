@@ -1,4 +1,6 @@
 import os
+import random
+
 import numpy as np
 import xml.etree.ElementTree as ET
 from detectron2.structures import BoxMode
@@ -10,7 +12,7 @@ __all__ = ["register_meta_voc"]
 
 DATASET_BASE_DIR = 'datasets'
 
-VOC_BASE_INSTANCE_CAP = os.environ.get("VOC_BASE_INSTANCE_CAP", None) == "True"
+VOC_BASE_INSTANCE_CAP = os.environ.get("VOC_BASE_INSTANCE_CAP", None) == "true"
 
 def load_filtered_voc_instances(
     name: str, dirname: str, split: str, classnames: str
@@ -50,6 +52,7 @@ def load_filtered_voc_instances(
             fileids = np.loadtxt(f, dtype=str)
 
     dicts = []
+    instance_counts = [0 for cls_id in range(len(classnames))]
     if is_shots:
         for cls, fileids_ in fileids.items():
             dicts_ = []
@@ -80,8 +83,10 @@ def load_filtered_voc_instances(
                         "width": int(tree.findall("./size/width")[0].text),
                     }
                     cls_ = obj.find("name").text
-                    if cls != cls_ and (classnames.index(cls) + offset >= 15 or VOC_BASE_INSTANCE_CAP):
-                        continue
+                    if cls != cls_:
+                        if VOC_BASE_INSTANCE_CAP or classnames.index(cls_) >= 15:
+                            continue
+                    instance_counts[classnames.index(cls_)] += 1
                     bbox = obj.find("bndbox")
                     bbox = [
                         float(bbox.find(x).text)
@@ -101,8 +106,17 @@ def load_filtered_voc_instances(
                     dicts_.append(r)
             # Only novel extra instances should be clipped to respect x-shot constraints,
             # unless we're doing things the old TFA/DeFRCN way, that is clipping base ones too
-            if len(dicts_) > int(shot) and (classnames.index(cls) + offset >= 15 or VOC_BASE_INSTANCE_CAP):
-                dicts_ = np.random.choice(dicts_, int(shot), replace=False)
+            if (classnames.index(cls) + offset >= 15 or VOC_BASE_INSTANCE_CAP) and instance_counts[classnames.index(cls)] > int(shot):
+                d = []
+                count = 0
+                random.shuffle(dicts_)
+                while count < int(shot):
+                    anno = dicts_.pop(0)
+                    if any(map(lambda x: x['category_id'] != classnames.index(cls) and (x['category_id'] >= 15 or VOC_BASE_INSTANCE_CAP), anno['annotations'])):
+                        continue
+                    d.append(anno)
+                    count += len([d for d in anno['annotations'] if d['category_id'] == classnames.index(cls)])
+                dicts_ = d
             dicts.extend(dicts_)
     else:
         for fileid in fileids:
