@@ -70,7 +70,7 @@ def main(args):
 if __name__ == "__main__":
     parser = default_argument_parser()
     parser.add_argument('--sampler', dest='sampler', type=str,
-                        help="Type of sampler for base samples. Use BaseAblationSampler for random sampling")
+                        help="Type of sampler for base samples. Use AblationSampler for random sampling")
     parser.add_argument('--sample_pool_size', dest='sample_pool_size', default=100, type=int,
                         help="Number of samples to draw prototypes from")
     parser.add_argument('--sample_out_size', dest='sample_out_size', default=[5],
