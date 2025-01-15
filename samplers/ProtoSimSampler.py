@@ -49,7 +49,11 @@ class ProtoSimSampler(ProtoSampler):
                 sorted_distances = sorted([(proto_cid, dist) for proto_cid, dist in distances.items()],
                                           key=lambda x: x[1])
                 proto_next, dist_next = next(filter(lambda el: el[0] != class_id, sorted_distances))
-                sim_scores.append((file_name, dist_correct / dist_next))
+                try:
+                    ratio = dist_correct / dist_next
+                except ZeroDivisionError:
+                    ratio = 10e5
+                sim_scores.append((file_name, ratio))
             sim_scores.sort(key=lambda proto_score_tup: proto_score_tup[1])
             # Collect samples
             for file_name, dist in sim_scores:
