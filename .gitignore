@@ -31,9 +31,10 @@ wheels/
 exp/
 checkpoints/
 _DEL_/
-#datasets/coco
-#datasets/cocosplit
-#datasets/VOC2007
-#datasets/VOC2012
-#datasets/vocsplit
 datasets/*
+
+# Ignore graphs
+plots/outputs/
+# Ignore generated base splits
+voc_splits/
+coco_splits/
