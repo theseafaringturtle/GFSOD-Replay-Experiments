@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--res-dir', type=str, default='', help='Path to the results')
     parser.add_argument('--shot-list', type=int, nargs='+', default=[10], help='')
+    parser.add_argument('--latex', action='store_true', help='Just a convenience function to print out certain metrics')
     args = parser.parse_args()
     log = logging.getLogger(__name__)
 
@@ -82,6 +83,13 @@ def main():
         cid = [2.262 * s / math.sqrt(results_np.shape[0]) for s in np.std(results_np, axis=0, ddof=1)]
         results.append(['μ'] + avg[1:])
         results.append(['c'] + cid[1:])
+        if args.latex: # just for convenience
+            print(f"Shots: {shot}")
+            indexes = [header_keys.index('AP') + 1, header_keys.index('bAP') + 1, header_keys.index('nAP') + 1]
+
+            print(f"AP: {round(avg[indexes[0]], 1)} \scriptsize ± {round(cid[indexes[0]], 1)}")
+            print(f"bAP: {round(avg[indexes[1]], 1)} \scriptsize ± {round(cid[indexes[1]], 1)}")
+            print(f"nAP: {round(avg[indexes[2]], 1)} \scriptsize ± {round(cid[indexes[2]], 1)}")
 
         table = tabulate(
             results,
