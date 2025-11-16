@@ -2,7 +2,7 @@ import json
 import os
 from typing import Tuple
 
-RES_DIR = os.environ.get("RES_DIR", "../results/thesis")
+RES_DIR = os.environ.get("RES_DIR", "../results/thesis/final")
 
 def get_coco_data(exp_name: str, shot: int, seed: int) -> Tuple[float, float]:
     dir = f"{RES_DIR}/coco/{exp_name}/defrcn_gfsod_r101_novel/tfa-like"

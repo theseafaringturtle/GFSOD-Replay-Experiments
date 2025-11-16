@@ -29,10 +29,10 @@ grad_voc_exp_names = {"agem": "A-GEM", "mega2": "MEGA-II",
 grad_coco_exp_names = {"agem": "A-GEM", "mega2": "MEGA-II",
                        "cag": "CAG", "cfa": "CFA", "cfaloss": "CFAL", "avgonly": "Averaging"}
 sam_coco_exp_names = {"sampled_ablation_cap_100": "Random",
-                      "sampled_proto_cap_100": "PD-BK",
-                      "sampled_protohist_cap_100": "PD-Histogram",
-                      "sampled_protosim_cap_100": "PDRatio-BK",
-                      "sampled_protosimhist_cap_100": "PDRatio-Hist"
+                      "sampled_proto_cap_100": "ProtoDist",
+                      # Note to self: accidentally  renamed, use _nomin for VOC, _cap_100 for COCO
+                      "sampled_protosim_nomin": "ProtoDist Ratio",
+                      "sampled_protosim_nomin_er": "ProtoDist Ratio (ER)"
                       }
 sam_voc_exp_names = sam_coco_exp_names
 
