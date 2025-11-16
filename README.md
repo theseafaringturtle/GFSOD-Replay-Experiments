@@ -4,7 +4,6 @@
 
 This repo contains the source for "Prototype Distance Ratio Sampling for Generalised Few Shot Object Detection"
 
-[//]: # TODO: (Link protodist image from arxiv.org)
 
 ## Installation
 
@@ -84,8 +83,3 @@ If you have less than 24GB VRAM at your disposal, edit run_voc.sh and run_coco.s
 ## Acknowledgements
 This repo is developed based on [DeFRCN](https://github.com/er-muyue/DeFRCN), [TFA](https://github.com/ucbdrive/few-shot-object-detection) and [Detectron2](https://github.com/facebookresearch/detectron2).
 The training was originally run on [ARCHIE-WeST](https://www.archie-west.ac.uk/).
-
-## Citing
-If you use this work in your research or wish to refer to the baseline results published here, please use the following BibTeX entries:
-
-[//]: # (TODO) BIBTEX HERE, Arxiv if not accepted
